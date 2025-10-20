@@ -263,3 +263,135 @@ https://github.com/mehmetozkaya/EShopMicroservices-Udemy-Sections
 
 **开发团队**
 如果你的团队没有使用微服务和容器系统的经验，那么构建基于微服务的应用程序将会非常困难。
+
+## 三、.NET 8/C# 12
+
+### 1. .NET 8 新特性
+
+**.NET Aspire**
+专为构建云原生应用程序而设计的开发平台，它提供了一组工具和库，帮助开发人员更轻松地构建、测试和部署微服务架构的应用程序。
+
+***核心.NET库*
+序列化功能的增强、时间抽象机制的改进、UTF8编码的优化、处理随机性的相关方法，以及专注于性能优化的类型，例如 System.Numerics 和 System.Runtime.Intrinsics。
+
+**衡量指标**
+为 `Meter` 和 `Instrument` 对象添加键值对标签，从而在汇总的指标数据中实现更细致的区分。
+
+**网络**
+支持 HTTPS 代理，即使在代理环境下也能确保通信的安全性，从而提升隐私性和安全性。
+
+**扩展库**
+选项验证、LoggerMessageAttribute构造函数、扩展指标、托管的生命周期服务以及基于键值的依赖注入服务。
+
+**垃圾回收**
+可动态调整内存限制，这一功能在需要实现动态扩展的云服务场景中至关重要。
+
+**反射性能的优化**
+经过优化后，性能得到了提升，内存使用效率也更高了。此外，函数指针还新增了反射功能。
+
+**原生AOT支持**
+高效的编译与执行能力，尤其适用于云原生环境及高性能应用场景。
+
+**.NET SDK**
+更加强大且功能丰富，完全符合现代.NET 开发不断变化的需求。对 dotnet publish 和 dotnet pack 命令进行了优化升级。
+
+### 2. C# 12 新特性
+
+**主构造函数**
+主要构造函数的适用范围不止`record`类型可以使用。现在，这些构造函数的参数在整个类体中都是有效的。
+
+```csharp
+public class Person(string Name, int Age)
+{
+    public string Name { get; } => name;
+    public int Age { get; } => age;
+}
+```
+
+**集合表达式**
+更简洁的语法用于创建常见的集合对象。这简化了集合对象的初始化和操作方式。
+
+```csharp
+var numbers = new List<int> { 1, 2, 3, .. otherNumbers };
+var numbers = [1, 2, 3, .. otherNumbers];
+```
+
+**内联数组**
+通过允许开发人员在结构体类型中创建固定大小的数组，从而提升程序的性能。有助于优化内存布局并提升运行时性能。
+
+```csharp
+public struct Buffer
+{
+    public Span<int> InlineArray => MemoryMarshal.CreateSpan(ref _array[0], 10);
+
+    private int[] _array;
+}
+```
+
+**Lambda表达式中的可选参数**
+Lambda表达式中参数的默认值。这一设计与为方法添加默认值的语法和规则保持一致，从而使Lambda表达式更加灵活。
+
+```csharp
+Func<int, int, int> add = (x, y = 1) => x + y;
+Console.WriteLine(add(5));
+```
+
+**只读参数**
+改进了 C# 中只读引用的传递方式。在涉及大型数据结构的场景中，优化了内存使用和性能。
+
+```csharp
+public void ProcessLargeData(in LargeData data)
+{
+    // 处理大型数据
+}
+```
+
+**任意类型别名**
+可以使用别名指令来包含任何类型的元素，而不仅仅是那些具有明确名称的类型。为元组、数组和指针等复杂数据类型创建语义别名。
+
+```csharp
+using Coordinate = System.ValueTuple<int, int>;
+Coordinate location = (10, 20);
+```
+
+**顶层语句**
+简化应用程序的入口点。无需将主要逻辑封装在 `Main` 方法中，可以直接在文件的顶层编写代码即可。
+
+**全局引用**
+使命名空间在整个项目中都能被使用。无需在每个文件中都重复声明这些命名空间，只需在某个统一的位置进行全局声明即可。
+
+```csharp
+global using System;
+global using System.Collections.Generic;
+```
+
+**模式匹配**
+提供了更丰富的语法，用于在代码中检查并解析各种数据值。
+
+```csharp
+public class Person
+{
+    public string Name { get; set; }
+    public string Title { get; set; }
+}
+
+Person person = new Person { Name = "John", Title = "Manager" };
+if (person is { Title: "Manager" })
+{
+    Console.WriteLine($"{person.Name} is a manager.");
+}
+```
+
+**Switch模式匹配**
+使用Switch表达式来处理枚举类型的情况，提供了更简洁和可读的代码。
+
+```csharp
+public State PerformOperation(Operation command) => command switch
+{
+    Operation.SystemTest => RunDiagnostics(),
+    Operation.Start => StartSystem(),
+    Operation.Stop => StopSystem(),
+    Operation.Reset => ResetToReady(),
+    _ => throw new ArgumentException("Invalid enum value for command", nameof(command)),
+}
+```
