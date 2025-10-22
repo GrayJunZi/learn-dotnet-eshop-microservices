@@ -1,0 +1,28 @@
+meta {
+  name: 创建商品
+  type: http
+  seq: 1
+}
+
+post {
+  url: https://localhost:5050/products
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "Name": "New Product A",
+    "Categories": [
+      "A",
+      "B",
+      "C"
+    ],
+    "ImageFile":"Image File Product A",
+    "Price": 199.99
+  }
+}
+
+settings {
+  encodeUrl: true
+}

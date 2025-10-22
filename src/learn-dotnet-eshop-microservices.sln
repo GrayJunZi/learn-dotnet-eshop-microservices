@@ -1,0 +1,39 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{641A79AF-86C3-43B0-A125-E89091A158E6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Catalog", "Catalog", "{7C99B5FB-85D4-43BB-83B5-8CD4F3107BEB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Catalog.API", "Services\Catalog\Catalog.API\Catalog.API.csproj", "{F9A4D51D-6FDB-42A3-BDED-BB9A219B11D6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildingBlocks", "BuildingBlocks", "{664CBE4D-0FF0-48EF-8930-33EC304D68D5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildingBlocks", "BuildingBlocks\BuildingBlocks\BuildingBlocks.csproj", "{FBCB67B9-FA1C-45B5-94F1-6ED3BC8DD0B8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F9A4D51D-6FDB-42A3-BDED-BB9A219B11D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F9A4D51D-6FDB-42A3-BDED-BB9A219B11D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F9A4D51D-6FDB-42A3-BDED-BB9A219B11D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F9A4D51D-6FDB-42A3-BDED-BB9A219B11D6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FBCB67B9-FA1C-45B5-94F1-6ED3BC8DD0B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBCB67B9-FA1C-45B5-94F1-6ED3BC8DD0B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBCB67B9-FA1C-45B5-94F1-6ED3BC8DD0B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBCB67B9-FA1C-45B5-94F1-6ED3BC8DD0B8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7C99B5FB-85D4-43BB-83B5-8CD4F3107BEB} = {641A79AF-86C3-43B0-A125-E89091A158E6}
+		{F9A4D51D-6FDB-42A3-BDED-BB9A219B11D6} = {7C99B5FB-85D4-43BB-83B5-8CD4F3107BEB}
+		{FBCB67B9-FA1C-45B5-94F1-6ED3BC8DD0B8} = {664CBE4D-0FF0-48EF-8930-33EC304D68D5}
+	EndGlobalSection
+EndGlobal

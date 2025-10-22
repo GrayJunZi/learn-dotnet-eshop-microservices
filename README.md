@@ -425,3 +425,252 @@ public State PerformOperation(Operation command) => command switch
 3. 在任何机器上运行这些镜像，从而在镜像中创建出可运行的容器。
 
 使用 `docker-compose` 来编排整个微服务应用程序，以便运行多个容器的Docker镜像。
+
+## 五、微服务 Catalog.API
+
+- `ASP.NET Core Minimal APIs`，用于构建高效的 HTTP API，提供了简洁的语法和功能，使开发人员能够快速创建 RESTful 服务。
+- `Vertical Slice Architecture`，采用垂直切片架构时，将应用程序的功能按照垂直方向进行切分，每个功能模块都是一个独立的垂直切片。每个切片都包含了该功能模块的所有代码，包括控制器、服务、数据访问层等。
+- `CQRS`，命令查询职责分离（Command Query Responsibility Segregation）是一种软件架构模式，用于将应用程序的读写操作分离开来。使用 `MediatR` 来实现CQRS模型。
+- `Marten`，用于在 `PostgreSQL` 上操作事务性文档型数据库。 
+- `Carter`，用于简化API接口定义的工具。
+- `Mapster`，用于`DTO`类的对象映射。
+- `FluentValidation`，对输入数据进行验证，并集成MediatR验证管道。
+- `Dockerfile` 与 `docker-compose` 用于将微服务部署并运行在Docker环境中。
+
+### 1. 微服务的端口号定义
+
+| 微服务    | 本地环境   | Docker 环境 | Docker 内部 |
+| -------- | --------- | --------- | --------- |
+| Catalog  | 5000-5050 | 6000-6060 | 8080-8081 |
+| Basket   | 5001-5051 | 6001-6061 | 8080-8081 |
+| Discount | 5002-5052 | 6002-6062 | 8080-8081 |
+| Ordering | 5003-5053 | 6003-6063 | 8080-8081 |
+
+### 2. 微服务 Catalog.API 接口定义
+
+| 方法	  | 请求地址            | 描述                  |
+| ------ | ------------------ | -------------------- |
+| GET    | /products          | 获取商品信息列表        |
+| GET    | /products/{id}     | 获取指定商品信息        |
+| GET    | /products/category | 根据分类获取商品信息列表 |
+| POST   | /prodducts         | 创建商品信息           |
+| PUT    | /products/{id}     | 修改商品信息           |
+| DELETE | /products/{id}     | 删除商品信息           |
+
+### 3. 微服务 Catalog.API 技术分析
+
+**垂直切片架构（Vertical Slice Architecture）**
+
+常用于开发功能丰富、结构复杂的应用程序。将应用程序划分为不同的功能模块，每个模块都能贯穿整个应用程序的所有层级。与传统的多层架构不同，在传统架构中，应用程序是按水平方向进行划分的（如表示层、业务逻辑层、数据访问层等），而垂直切片架构则是按垂直方向进行划分的（每个功能模块都是一个独立的垂直切片）。
+
+垂直切片架构的特性是每个部分都是独立且自成一体的，应用程序的不同组件之间的依赖关系得到了降低。具备可扩展性和可维护性，使得测试和部署流程变得更加高效。
+
+垂直切片架构的优势是采用专注开发的方式，团队可以一次只专注于开发一个功能。这种方式简化了代码重构和系统升级的工作流程，因为某个部分的修改通常	不会影响到其他部分。这种开发模式与敏捷开发和DevOps实践高度契合，支持增量式开发和持续交付。
+
+每个垂直切片都包含完整的功能模块：
+
+- UI
+- Application
+- Domain
+- Infrastructure
+
+垂直切片架构与整洁架构的对比如下：
+
+- VSA 强调围绕具体功能来组织软件开发功能，摒弃了那些繁琐的层级结构。
+- CA 强调关注点分离与依赖关系管理。它将代码组织成不同的层次结构。
+- VSA 模型中，开发团队专注于实现完整的系统功能，而这些功能往往需要涉及整个技术栈的各个层面。
+- CA采用更加结构化的方法，确保业务逻辑与外部因素相互分离。
+- VSA非常适合那些致力于开发具有众多功能的复杂应用程序的敏捷团队。
+- CA非常适合那些需要长期维护、具备可扩展性，并且能够适应不断变化的业务需求的大规模应用场景。
+
+**模式与原则（Patterns & Principles）**
+
+- CQRS 模式（命令查询职责分离）：将操作划分为命令(写入数据) 和查询 (读取数据)。
+- 中介者模式（Mediator Pattern）：通过一个中介者来协调对象之间的交互，减少对象间的直接依赖，并简化通信过程。
+- ASP.NET Core 的依赖注入（DI）：依赖注入是一项核心功能，允许我们将所需的依赖项注入到类中。
+- ASP.NET 8 的 Minimal API和路由机制：ASP.NET 8 的 Minimal API 简化了接口定义，提供轻量级的语法用于路由和处理HTTP请求。
+- ORM 模式（对象关系映射）：通过对象关系映射技术将数据库的交互操作抽象出来，允许开发者能够使用高级代码操作数据库对象。
+
+**类库与NuGet包**
+
+- `MediatR` - 用于简化CQRS模式的实现过程。
+- `Carter` - 负责路由和处理HTTP请求，能以清晰、简洁的代码轻松定义API接口。
+- `Marten` - 将PostgreSQL用作文档数据库来使用，并充分利用其对JSON的强大支持来存储、查询和管理文档。
+- `Mapster` - 是一个快速且可配置的对象映射工具，简化了对象之间映射的过程。
+- `FluentValidation` - 用于构建强类型验证规则，确保输入数据在处理前的正确性。
+
+### 4. 微服务 Catalog.API 项目创建
+
+#### 4.1 创建项目结构
+
+(1). 创建解决方案
+
+```bash
+dotnet new sln -n "learn-dotnet-eshop-microservices"
+```
+
+(2). 创建 Web API 项目
+
+```bash
+dotnet new webapi -n "Catalog.API"
+```
+
+(3). 将 Web API 项目添加到解决方案中
+
+```bash
+dotnet sln add ".\Services\Catalog\Catalog.API"
+```
+
+(4). 创建 BuildingBlocks 类库
+
+```bash
+dotnet new classlib -n "BuildingBlocks"
+```
+
+(5). 将 BuildingBlocks 类库添加到解决方案中
+
+```bash
+dotnet sln add ".\BuildingBlocks\BuildingBlocks"
+```
+
+(6). 在 Catalog.API 项目中添加对 BuildingBlocks 类库的引用
+
+```bash
+dotnet add ".\Services\Catalog\Catalog.API" reference ".\BuildingBlocks\BuildingBlocks"
+```
+
+#### 4.2 安装 MediatR 类库
+
+(1). 在 BuildingBlocks 项目中安装 MediatR 类库
+
+```bash
+dotnet add package MediatR
+```
+
+(2). 在 Catalog.API 项目中注册 MediatR 服务
+
+```csharp
+builder.Services.AddMediatR(config =>
+{
+    config.RegisterServicesFromAssembly(typeof(Program).Assembly);
+});
+```
+
+#### 4.4 安装 Mapster 类库
+
+(1). 在 BuildingBlocks 项目中安装 Mapster 类库
+
+```bash
+dotnet add package Mapster
+```
+
+#### 4.3 安装 Carter 类库
+
+(1). 在 Catalog.API 项目中安装 Carter 类库
+
+```bash
+dotnet add package Carter
+```
+
+(2). 在 Catalog.API 项目中注册 Carter 服务
+
+```csharp
+builder.Services.AddCarter();
+```
+
+(3). 在 Catalog.API 项目中启用 Carter 管道
+
+```csharp
+app.MapCarter();
+```
+
+#### 4.2 封装CQRS
+
+(1). 定义命令接口
+
+```csharp
+public interface ICommand : ICommand<Unit>
+{
+    
+}
+
+public interface ICommand<out TResponse> : IRequest<TResponse>
+{
+    
+}
+```
+
+(2). 定义命令处理接口
+
+```csharp
+public interface ICommandHandler<in TCommand> : ICommandHandler<TCommand, Unit>
+    where TCommand : ICommand<Unit>
+{
+
+}
+
+public interface ICommandHandler<in TCommand, TResponse> : IRequestHandler<TCommand, TResponse>
+    where TCommand : ICommand<TResponse>
+    where TResponse : notnull
+{
+
+}
+```
+
+(3). 定义查询接口
+
+```csharp
+public interface IQuery<out TResponse> : IRequest<TResponse>
+    where TResponse : notnull
+{
+
+}
+```
+
+(4). 定义查询处理接口
+
+```csharp
+public interface IQueryHandler<in TQuery, TResponse> : IRequestHandler<TQuery, TResponse>
+    where TQuery : IQuery<TResponse>
+    where TResponse : notnull
+{
+
+}
+```
+
+#### 4.3 定义 Carter 接口
+
+```csharp
+public class CreateProductEndpoint : ICarterModule
+{
+    public void AddRoutes(IEndpointRouteBuilder app)
+    {
+        app
+            .MapPost("/products", async (CreateProductRequest request, ISender sender) =>
+            {
+                var command = request.Adapt<CreateProductCommand>();
+
+                var result = await sender.Send(command);
+
+                var response = result.Adapt<CreateProductResponse>();
+
+                return Results.Created($"/products/{response.Id}", response);
+            })
+            .WithName("CreateProduct")
+            .WithSummary("Create Product")
+            .WithDescription("Create Product")
+            .Produces<CreateProductResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+    }
+}
+```
+
+#### 4.4 添加全局引用
+
+创建 `GlobalUsings.cs` 文件	
+
+```csharp
+global using Carter;
+global using Mapster;
+global using MediatR;
+```
