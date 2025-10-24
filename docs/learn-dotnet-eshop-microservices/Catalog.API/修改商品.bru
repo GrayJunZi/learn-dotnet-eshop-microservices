@@ -1,10 +1,10 @@
 meta {
-  name: 创建商品
+  name: 修改商品
   type: http
-  seq: 1
+  seq: 5
 }
 
-post {
+put {
   url: {{CatalogAPI}}/products
   body: json
   auth: inherit
@@ -12,6 +12,7 @@ post {
 
 body:json {
   {
+    "Id": "019a0ef0-c56f-42d9-bd0f-0d390f7653bf",
     "Name": "New Product A",
     "Categories": [
       "A",

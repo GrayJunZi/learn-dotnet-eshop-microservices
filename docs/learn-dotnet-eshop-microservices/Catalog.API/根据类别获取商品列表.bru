@@ -1,0 +1,15 @@
+meta {
+  name: 根据类别获取商品列表
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{CatalogAPI}}/products/category/A
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

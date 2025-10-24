@@ -674,3 +674,128 @@ global using Carter;
 global using Mapster;
 global using MediatR;
 ```
+
+## 六、开发 Catalog.API 基础设施、处理程序以及相关接口
+
+### 1. 什么是云原生微服务的支撑服务？
+
+- 云原生微服务的支撑服务（Backing Services）是指微服务在运行过程中所依赖的外部组件。
+- 这些服务为微服务提供多种功能支持，例如数据存储、消息传递、缓存和身份认证等。
+- 数据库、消息系统和缓存服务等支撑服务被视为附加资源。
+- 支撑服务独立于微服务本身，可在不修改微服务核心逻辑的情况下进行替换或更换。
+- 支撑服务与微服务解耦，从而提升了系统的灵活性、可扩展性，并简化了维护工作。
+
+### 2. 云原生微服务的支撑服务
+
+- API 网关：用于管理微服务的入口流量，路由请求到相应的微服务。
+- 服务网格（Service Mesh）：用于管理微服务之间的通信和流量控制。
+- 身份认证（Authentication & Authorization）：用于保护微服务的访问和资源。
+- 授权（Authorization）：用于定义和管理用户对资源的访问权限。
+- 消息代理（Message Broker）：用于微服务之间的异步通信。
+- 事件流（Event Streaming）：用于微服务之间的事件驱动通信。
+- 日志系统：用于监控和追踪微服务的运行日志。
+- 搜索系统：用于数据分析和搜索。
+- 数据库：用于存储微服务的数据（关系型数据库或 NoSQL 数据库）。
+- 分布式缓存：用于提高微服务的性能和响应时间。
+- 对象存储：用于存储和检索非结构化数据，例如图片、视频和文档。
+
+### 3. 微服务 Catalog.API 的基础数据结构
+
+- Marten 是一种对象关系映射器（ORM），它充分利用了PostgreSQL的JSON功能。
+- Marten 是一个功能强大的工具库，它能够将PostgreSQL转换为支持.NET事务处理的文档数据库系统。
+- PostgreSQL的JSON列功能使我们能够将数据以JSON文档的形式进行存储和查询。
+- 它结合了文档数据库的灵活性与关系型 PostgreSQL 数据库的可靠性。
+
+### 4. 微服务部署策略
+
+1. 使用 Docker Compose 构建本地开发环境以支持各项服务。
+2. 完整的 Docker 环境编排。对微服务及依赖关系进行统一管理。
+3. 未来在Kubernetes和云平台上进行部署。
+
+#### 4.1 添加 Docker Compose 配置
+
+(1). 添加 `docker-compose.yaml` 文件
+
+该文件用于定义微服务的基础配置，包括数据库服务、网络、卷等核心配置。
+
+```yaml
+services:
+  catalog.db:
+    image: postgres
+    
+volumes:
+  postgres_catalog:
+    
+```
+
+(2). 添加 `docker-compose.override.yaml` 文件
+
+该文件用于定义本地开发环境的 Docker Compose 配置。它会自动合并主配置文件。
+
+```yaml
+services:
+  catalog.db:
+    container_name: catalog.db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=CatalogDb
+    restart: always
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_catalog:/var/lib/postgresql/data/
+```
+
+### 5. 微服务 Catalog.API 基础设施层
+
+#### 5.1 安装 Marten 类库
+
+(1). 在 Catalog.API 项目中安装 Marten 类库
+
+```bash
+dotnet add package Marten
+```
+
+#### 5.2 在CQRS中使用 Marten
+
+在主构造函数中注入 `IDocumentSession` 接口，用于与数据库进行交互。
+
+```csharp
+internal class CreateProductHandler (IDocumentSession documentSession)
+    : ICommandHandler<CreateProductCommand, CreateProductResult>
+{
+    public async Task<CreateProductResult> Handle(CreateProductCommand command, CancellationToken cancellationToken)
+    {
+        var product = new Product
+        {
+            Name = command.Name,
+            Categories = command.Categories,
+            Description = command.Description,
+            ImageFile = command.ImageFile,
+            Price = command.Price,
+        };
+        
+        // 保存数据
+        documentSession.Store(product);
+        await documentSession.SaveChangesAsync(cancellationToken);
+
+        return new CreateProductResult(product.Id);
+    }
+}
+```
+
+### 6. 自定义异常类
+
+```csharp
+public class ProductNotFoundException : Exception
+{
+    public ProductNotFoundException() : base("Product not found")
+    {
+    }
+
+    public ProductNotFoundException(string message) : base(message)
+    {
+    }
+}
+```

@@ -1,0 +1,15 @@
+meta {
+  name: 根据商品Id获取商品信息
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{CatalogAPI}}/products/019a0ef0-c56f-42d9-bd0f-0d390f7653bf
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
