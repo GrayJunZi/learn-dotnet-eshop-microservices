@@ -799,3 +799,590 @@ public class ProductNotFoundException : Exception
     }
 }
 ```
+
+## 七、开发 Catalog.API 横切关注点
+
+- MediatR 管道行为 与 Fluent 验证库
+- 日志记录与验证流程的行为特性
+- 在 ASP.NET Core 中全局异常处理
+- 使用 Marten 种子数据 为数据库进行数据填充
+- 为 Catalog 的 PostgreSQL 数据库进行健康检查
+- 为 GetProducts 查询实现分页
+- 使用 Docker 和 Docker Compose 对微服务进行容器化与编排
+
+### 1. MediatR Pipeline Behaviours (管道行为)
+
+- MediatR的强大功能之一是“管道行为”，它允许在请求处理过程中添加额外的逻辑：验证、日志记录、异常处理以及性能监控。
+- Pipeline Behaviors在MediatR库中充当中间件的角色，它们围绕着请求处理流程进行工作，从而实现了对各种跨领域问题的处理。
+
+### 2. FluentValidation 验证器
+
+- FluentValidation 用于构建强类型验证规则的库。
+- FluentValidation 与 MediatR 集成在一起，以便在请求到达处理程序之前对其进行验证。
+- FluentValidation 将验证规则定义在单独的类中，通过 Fluent API 风格来指定模型中每个属性必须满足条件。
+- 将 MediatR 与 FluentValidation 结合使用，可以集成处理诸如数据验证这类跨模块的常见问题，从而使我们的代码更加简洁、更易于维护。
+
+### 3. 使用 Marten 的初始基准数据填充种子数据
+
+- 种子数据对于使用基线数据来初始化数据库至关重要。Marten为此提供了一个名为 IlnitialData 的功能。
+- 实现 IInitialData 接口，以便用预定义的产品来初始化我们的 CatalogDb。
+- 该接口使得 Marten 能在数据库首次初始化时自动完成数据填充工作。
+
+### 4. ASP.NET Core 中的健康检查功能
+
+- 在 ASP.NET Core 中，健康检查功能提供了一种监控应用程序及依赖项运行状态的方法。
+- 健康检查功能通过应用程序以 HTTP 端点的形式对外提供。这些健康检查端点可以根据不同的实时监控需求进行配置。
+- 容器编排器可以在检测到健康检查失败时，暂停滚动部署或重启相关容器。
+- 负载均衡器可能会在检测到应用程序出现故障时，将流量从出现问题的实例重新路由到正常的实例上。
+
+### 5. 集成 FluentValidation 与 MediatR 管道行为
+
+(1). 在 BuildingBlocks 项目中安装 FluentValidation 类库
+
+```bash
+dotnet add package FluentValidation.DependencyInjectionExtensions
+```
+
+(2). 在 BuildingBlocks 中创建 ValidationBehavior 类
+
+```csharp
+public class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)
+    : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : ICommand<TResponse>
+{
+    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        var context = new ValidationContext<TRequest>(request);
+
+        var validationResults =
+            await Task.WhenAll(validators.Select(x => x.ValidateAsync(context, cancellationToken)));
+
+        var failures = validationResults
+            .Where(x => x.Errors.Any())
+            .SelectMany(x => x.Errors)
+            .ToList();
+
+        if (failures.Count > 0)
+            throw new ValidationException();
+        
+        return await next();
+    }
+}
+```
+
+(3). 在 Catalog.API 中注册 ValidationBehavior 类
+
+```csharp
+builder.Services.AddMediatR(config =>
+{
+    config.RegisterServicesFromAssembly(typeof(Program).Assembly);
+    config.AddOpenBehavior(typeof(ValidationBehavior<,>));
+});
+```
+
+(4). 在 Catalog.API 添加 CreateProductCommand 验证器
+
+```csharp
+public class CreateProductCommandValidator : AbstractValidator<CreateProductCommand>
+{
+    public CreateProductCommandValidator()
+    {
+        RuleFor(x => x.Name)
+            .NotEmpty()
+            .WithMessage("Name is required");
+        
+        RuleFor(x => x.Categories)
+            .NotEmpty()
+            .WithMessage("Categories is required");
+
+        RuleFor(x => x.ImageFile)
+            .NotEmpty()
+            .WithMessage("Image file is required");
+
+        RuleFor(x => x.Price)
+            .GreaterThan(0)
+            .WithMessage("Price must be greater than 0");
+    }
+}
+```
+
+(5). 在 Catalog.API 中注册所有的 FluentValidation 验证器
+
+```csharp
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+```
+
+### 6. 全局异常处理
+
+#### 6.1 自定义异常类
+
+(1). 创建 NotFoundException 异常类
+
+```csharp
+public class NotFoundException : Exception
+{
+    public NotFoundException(string message) : base(message)
+    {
+    }
+
+    public NotFoundException(string name, object key) : base($"Entity '{name}' ({key}) was not found")
+    {
+        
+    }
+}
+```
+
+(2). 创建 InternalServerException 异常类
+
+```csharp
+public class InternalServerException : Exception
+{
+    public InternalServerException(string message):base(message)
+    {
+        
+    }
+
+    public InternalServerException(string message, string details) : base(message)
+    {
+        Details = details;
+    }
+    
+    public string? Details { get; }
+}
+```
+
+(3). 创建 BadRequestException 异常类
+
+```csharp
+public class BadRequestException : Exception
+{
+    public BadRequestException(string message):base(message)
+    {
+        
+    }
+
+    public BadRequestException(string message, string details) : base(message)
+    {
+        Details = details;
+    }
+    
+    public string? Details { get; }
+}
+```
+
+#### 6.2 全局异常处理中间件
+
+(1). 在 BuildingBlocks 项目中安装 FluentValidation 类库
+
+```bash
+dotnet add package FluentValidation
+dotnet add package FluentValidation.AspNetCore
+```
+
+(2). 创建全局异常处理中间件
+
+```csharp
+public class CustomerExceptionHandler(ILogger<CustomerExceptionHandler> logger) : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception,
+        CancellationToken cancellationToken)
+    {
+        logger.LogError("Error Message: {exceptionMessage}, Time of occurrence {Time}",
+            exception.Message,
+            DateTime.UtcNow);
+
+        (string Detail, string Title, int StatusCode) details = exception switch
+        {
+            InternalServerException => (
+                exception.Message,
+                exception.GetType().Name,
+                httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError
+            ),
+            ValidationException => (
+                exception.Message,
+                exception.GetType().Name,
+                httpContext.Response.StatusCode = StatusCodes.Status400BadRequest
+            ),
+            BadRequestException => (
+                exception.Message,
+                exception.GetType().Name,
+                httpContext.Response.StatusCode = StatusCodes.Status400BadRequest
+            ),
+            NotFoundException => (
+                exception.Message,
+                exception.GetType().Name,
+                httpContext.Response.StatusCode = StatusCodes.Status404NotFound
+            ),
+            _ => (
+                exception.Message,
+                exception.GetType().Name,
+                httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError
+            )
+        };
+
+        var problemDetails = new ProblemDetails
+        {
+            Title = details.Title,
+            Detail = details.Detail,
+            Status = details.StatusCode,
+            Instance = httpContext.Request.Path,
+        };
+
+        problemDetails.Extensions.Add("TraceId", httpContext.TraceIdentifier);
+
+        if (exception is ValidationException validationException)
+        {
+            problemDetails.Extensions.Add("ExceptionErrors", validationException.Errors);
+        }
+
+        await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+        return true;
+    }
+}
+```
+
+(3). 在 Catalog.API 中注册全局异常处理中间件
+
+```csharp
+builder.Services.AddExceptionHandler<CustomerExceptionHandler>();
+```
+
+(4). 在 Catalog.API 中配置全局异常处理中间件
+
+```csharp
+app.UseExceptionHandler(options => { });
+```
+
+### 7. 日志统一处理
+
+(1). 在 BuildingBlocks 项目中创建日志统一处理中间件
+
+```csharp
+public class LoggingBehavior<TRequet, TResponse>(ILogger<LoggingBehavior<TRequet, TResponse>> logger)
+    : IPipelineBehavior<TRequet, TResponse>
+    where TRequet : notnull, IRequest<TResponse>
+    where TResponse : notnull
+{
+    public async Task<TResponse> Handle(TRequet request, RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("[START] Handle Request={Request} - Response={Response} - RequestData={RequestData}",
+            typeof(TRequet).Name, typeof(TResponse).Name, request);
+
+        var timer = Stopwatch.StartNew();
+
+        var response = await next(cancellationToken);
+
+        timer.Stop();
+        var duration = timer.Elapsed;
+        if (duration.Seconds > 3)
+        {
+            logger.LogWarning("[PERFORMANCE] The Request {Request} took {Duration} seconds.",
+                typeof(TRequet).Name, duration.Seconds);
+        }
+
+        logger.LogInformation("[END] Handle {Request} with {Response}", 
+            typeof(TRequet).Name, typeof(TResponse).Name);
+        return response;
+    }
+}
+```
+
+(2). 在 Catalog.API 中注册日志统一处理中间件
+
+```csharp
+builder.Services.AddMediatR(config =>
+{
+    config.AddOpenBehavior(typeof(LoggingBehavior<,>));
+});
+```
+
+### 8. 初始化数据
+
+(1). 在 Catalog.API 项目中创建种子数据
+
+```csharp
+public class CatalogInitialData : IInitialData
+{
+    public async Task Populate(IDocumentStore store, CancellationToken cancellation)
+    {
+        using var session = store.LightweightSession();
+
+        if (await session.Query<Product>().AnyAsync(cancellation))
+            return;
+
+        session.Store<Product>();
+        await session.SaveChangesAsync(cancellation);
+    }
+
+    private static IEnumerable<Product> GetPreconfiguredProducts() => new List<Product>
+    {
+        new Product()
+        {
+            Id = new Guid("5334c996-8457-4cf0-815c-ed2b77c4ff61"),
+            Name = "IPhone X",
+            Description =
+                "This phone is the company's biggest change to its flagship smartphone in years. It includes a borderless.",
+            ImageFile = "product-1.png",
+            Price = 950.00M,
+            Categories = new List<string> { "Smart Phone" }
+        },
+        new Product()
+        {
+            Id = new Guid("c67d6323-e8b1-4bdf-9a75-b0d0d2e7e914"),
+            Name = "Samsung 10",
+            Description =
+                "This phone is the company's biggest change to its flagship smartphone in years. It includes a borderless.",
+            ImageFile = "product-2.png",
+            Price = 840.00M,
+            Categories = new List<string> { "Smart Phone" }
+        },
+        new Product()
+        {
+            Id = new Guid("4f136e9f-ff8c-4c1f-9a33-d12f689bdab8"),
+            Name = "Huawei Plus",
+            Description =
+                "This phone is the company's biggest change to its flagship smartphone in years. It includes a borderless.",
+            ImageFile = "product-3.png",
+            Price = 650.00M,
+            Categories = new List<string> { "White Appliances" }
+        },
+        new Product()
+        {
+            Id = new Guid("6ec1297b-ec0a-4aa1-be25-6726e3b51a27"),
+            Name = "Xiaomi Mi 9",
+            Description =
+                "This phone is the company's biggest change to its flagship smartphone in years. It includes a borderless.",
+            ImageFile = "product-4.png",
+            Price = 470.00M,
+            Categories = new List<string> { "White Appliances" }
+        },
+        new Product()
+        {
+            Id = new Guid("b786103d-c621-4f5a-b498-23452610f88c"),
+            Name = "HTC U11+ Plus",
+            Description =
+                "This phone is the company's biggest change to its flagship smartphone in years. It includes a borderless.",
+            ImageFile = "product-5.png",
+            Price = 380.00M,
+            Categories = new List<string> { "Smart Phone" }
+        },
+        new Product()
+        {
+            Id = new Guid("c4bbc4a2-4555-45d8-97cc-2a99b2167bff"),
+            Name = "LG G7 ThinQ",
+            Description =
+                "This phone is the company's biggest change to its flagship smartphone in years. It includes a borderless.",
+            ImageFile = "product-6.png",
+            Price = 240.00M,
+            Categories = new List<string> { "Home Kitchen" }
+        },
+        new Product()
+        {
+            Id = new Guid("93170c85-7795-489c-8e8f-7dcf3b4f4188"),
+            Name = "Panasonic Lumix",
+            Description =
+                "This phone is the company's biggest change to its flagship smartphone in years. It includes a borderless.",
+            ImageFile = "product-6.png",
+            Price = 240.00M,
+            Categories = new List<string> { "Camera" }
+        }
+    };
+}
+```
+
+(2). 在 Catalog.API 项目中注册种子数据
+
+```csharp
+builder.Services.InitializeMartenWith<CatalogInitialData>();
+```
+
+### 9. 分页功能
+
+(1). 在 Catalog.API 项目中接收分页查询参数
+
+```csharp
+public record GetProductsRequest(int? PageNumber = 1, int? PageSize = 10);
+
+public record GetProductsResponse(IEnumerable<Product> Products);
+
+public class GetProductsEndpoint : ICarterModule
+{
+    public void AddRoutes(IEndpointRouteBuilder app)
+    {
+        app
+            .MapGet("/products", async ([AsParameters] GetProductsRequest request,ISender sender) =>
+            {
+                var query = request.Adapt<GetProductsQuery>();
+                var result = await sender.Send(request);
+
+                var response = result.Adapt<GetProductsResponse>();
+                return Results.Ok(response);
+            })
+            .WithName("GetProducts")
+            .WithDescription("Get Products")
+            .WithSummary("Get Products")
+            .Produces<GetProductsResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+    }
+}
+```
+
+(2). 在 Catalog.API 项目中根据分页查询参数进行分页查询
+
+```csharp
+public record GetProductsQuery(int? PageNumber = 1, int? PageSize = 10) : IQuery<GetProductsResult>;
+
+public record GetProductsResult(IEnumerable<Product> Products);
+
+internal class GetProductsHandler(
+    IDocumentSession documentSession)
+    : IQueryHandler<GetProductsQuery, GetProductsResult>
+{
+    public async Task<GetProductsResult> Handle(GetProductsQuery query, CancellationToken cancellationToken)
+    {
+        var products = await documentSession.Query<Product>()
+            .ToPagedListAsync(query.PageNumber ?? 1, query.PageSize ?? 10, cancellationToken);
+        return new GetProductsResult(products);
+    }
+}
+```
+
+### 10. 健康检查
+
+#### 10.1 添加默认健康检查
+
+(1). 在 Catalog.API 项目中添加健康检查服务
+
+```csharp
+builder.Services.AddHealthChecks();
+```
+
+(2). 在 Catalog.API 项目中添加健康检查端点
+
+```csharp
+app.UseHealthChecks("/health");
+```
+
+#### 10.2 添加 PostgreSQL 健康检查
+
+(1). 在 Catalog.API 项目中安装 `AspNetCore.HealthChecks.Npgsql` 类库
+
+```bash
+dotnet add package AspNetCore.HealthChecks.Npgsql
+```
+
+(2). 在 Catalog.API 项目中注册 PostgreSQL 健康检查
+
+```csharp
+builder.Services.AddHealthChecks()
+    .AddNpgsql(builder.Configuration.GetConnectionString("Database"));
+```
+
+(3). 在 Catalog.API 项目中安装 `AspNetCore.HealthChecks.UI.Client` 类库
+
+```bash
+dotnet add package AspNetCore.HealthChecks.UI.Client
+```
+
+(4). 在 Catalog.API 项目中添加健康检查 UI 中间件
+
+```csharp
+app.UseHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+```
+
+### 11. Docker 容器化与编排
+
+#### 11.1 Docker 容器化
+
+(1). 在 Catalog.API 项目中添加 Dockerfile 文件
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+USER $APP_UID
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
+
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY ["Services/Catalog/Catalog.API/Catalog.API.csproj", "Services/Catalog/Catalog.API/"]
+COPY ["BuildingBlocks/BuildingBlocks/BuildingBlocks.csproj", "BuildingBlocks/BuildingBlocks/"]
+RUN dotnet restore "Services/Catalog/Catalog.API/Catalog.API.csproj"
+COPY . .
+WORKDIR "/src/Services/Catalog/Catalog.API"
+RUN dotnet build "./Catalog.API.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "./Catalog.API.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "Catalog.API.dll"]
+```
+
+#### 11.2 Docker 编排
+
+(1). 在 Catalog.API 项目中修改 docker-compose.yml 文件
+
+```yaml
+services:
+  catalog.db:
+    image: postgres
+    
+  catalog.api:
+    image: ${DOCKER_REGISTRY-}catalogapi
+    build:
+      context: .
+      dockerfile: Services/Catalog/Catalog.API/Dockerfile
+    
+volumes:
+  postgres_catalog:
+```
+
+(2). 在 Catalog.API 项目中修改 docker-compose.override.yml 文件
+
+```yaml
+services:
+  catalog.db:
+    container_name: catalog.db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=CatalogDb
+    restart: always
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_catalog:/var/lib/postgresql/data/
+        
+  catalog.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ConnectionStrings__Database=Server=catalog.db;Port=5432;Database=CatalogDb;User Id=postgres;Password=postgres;Include Error Detail=true
+    depends_on:
+      - catalog.db
+    ports:
+      - "6000:8080"
+      - "6001:8081"
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+```
+
+#### 11.3 运行 Docker 编排
+
+在 Catalog.API 项目中打开终端，运行以下命令
+
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
+```
