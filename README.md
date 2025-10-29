@@ -1381,8 +1381,254 @@ services:
 
 #### 11.3 运行 Docker 编排
 
-在 Catalog.API 项目中打开终端，运行以下命令
+(1). 在 Windows 环境中应该先运行以下命令生成开发证书
 
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
+dotnet dev-certs https -ep %USERPROFILE%\.aspnet\Https\localhost.pfx -p "123456"
+dotnet dev-certs https --trust
+```
+
+(2). 在 `docker-compose.override.yml` 文件中添加开发证书配置
+
+```yaml
+services:
+  catalog.api:
+    volumes:
+      - ${USERPROFILE}/.aspnet/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${USERPROFILE}/.aspnet/Https:/home/app/.aspnet/https:ro
+```
+
+(1). 在 Catalog.API 项目中打开终端，运行以下命令
+
+```bash
+docker-compose up -d
+```
+
+## 八、微服务 Basket.API
+
+- `ASP.NET Core Minimal APIs`，用于构建高效的 HTTP API，提供了简洁的语法和功能，使开发人员能够快速创建 RESTful 服务。
+- `Vertical Slice Architecture`，采用垂直切片架构时，将应用程序的功能按照垂直方向进行切分，每个功能模块都是一个独立的垂直切片。每个切片都包含了该功能模块的所有代码，包括控制器、服务、数据访问层等。
+- `CQRS`，命令查询职责分离（Command Query Responsibility Segregation）是一种软件架构模式，用于将应用程序的读写操作分离开来。使用 `MediatR` 来实现CQRS模型。
+- `Marten`，用于在 `PostgreSQL` 上操作事务性文档型数据库。 
+- `Redis` 分布式缓存 与 `Marten` 实现仓储模式。
+- `Carter`，用于简化API接口定义的工具。
+- `Mapster`，用于`DTO`类的对象映射。
+- `FluentValidation`，对输入数据进行验证，并集成MediatR验证管道。
+- `Dockerfile` 与 `docker-compose` 用于将微服务部署并运行在Docker环境中。
+
+### 1. 微服务 Basket.API 的领域模型
+
+购物车的领域模型主要包括：
+
+- `ShoppingCart` - 购物车
+- `ShoppingCartItem` - 购物车项目
+- `BasketCheckout` - 购物车结账
+
+以购物车结账为例，这一操作会触发一系列相关事件，从而实现系统的集成。
+
+### 2. 微服务 Basket.API 的应用场景
+
+#### 2.1 购物车管理
+
+- 客户可以添加、删除、更新购物车中的商品。
+- 客户可以查看购物车中的商品列表。
+
+#### 2.2 购物车结账
+
+- 客户可以在购物车中选择商品并结账。
+- 结账过程会触发一系列事件，如订单创建、库存更新等。
+- 发布事件将发送至RabbitMQ消息代理服务器。
+
+#### 2.3 gRPC 操作
+
+- 当使用购物车获取折扣时，会从商品价格扣除相应的折扣金额。
+
+### 3. 微服务 Basket.API 接口定义
+
+| 方法	  | 请求地址            | 描述              |
+| ------ | ------------------ | ---------------  |
+| GET    | /basket/{userName} | 获取购物车信息列表  |
+| POST   | /basket/{userName} | 购物车插入/更新操作 |
+| DELETE | /basket/{userName} | 删除购物车         |
+| POST   | /basket/checkout   | 购物车结账         |
+
+### 4. 微服务 Basket.API 的基础数据结构
+
+购物车微服务拥有两个数据存储系统：
+
+1. `Marten` 文档数据库
+2. `Redis`  分布式缓存
+
+- Marten是一个功能强大的工具库，它利用PostgreSQL的JSON列功能，将PostgreSQL转换成了一个支持.NET事务处理的文档数据库。
+- Redis是一种强大的内存数据存储系统及分布式缓存工具，非常适合用于微服务架构。
+
+### 5. 微服务 Basket.API 项目创建
+
+#### 5.1 创建项目结构
+
+(1). 创建 Web API 项目
+
+```bash
+dotnet new webapi -n "Basket.API"
+```
+
+(2). 将 Web API 项目添加到解决方案中
+
+```bash
+dotnet sln add ".\Services\Basket\Basket.API"
+```
+
+(3). 在 Basket.API 项目中添加对 BuildingBlocks 类库的引用
+
+```bash
+dotnet add ".\Services\Basket\Basket.API" reference ".\BuildingBlocks\BuildingBlocks"
+```
+
+#### 5.2 添加领域模型
+
+在 Basket.API 项目中的文件夹 `Models` 添加领域模型类
+
+```bash
+public class ShoppingCart
+{
+    public string UserName { get; set; }
+    public List<ShoppingCartItem> Items { get; set; }
+    public decimal TotalPrice => Items.Sum(x => x.Price * x.Quantity);
+
+    public ShoppingCart(string userName)
+    {
+        UserName = userName;
+    }
+
+    public ShoppingCart()
+    {
+        
+    }
+}
+
+public class ShoppingCartItem
+{
+    public int Quantity { get; set; }
+    public string Color { get; set; }
+    public decimal Price { get; set; }
+    public Guid ProductId { get; set; }
+    public string ProductName { get; set; }
+}
+```
+
+### 6 安装 Carter 类库
+
+(1). 在 Basket.API 项目中安装 Carter 类库
+
+```bash
+dotnet add package Carter
+```
+
+(2). 在 Basket.API 项目中注册 Carter 服务
+
+```csharp
+builder.Services.AddCarter();
+```
+
+(3). 在 Basket.API 项目中启用 Carter 管道
+
+```csharp
+app.MapCarter();
+```
+
+### 7. 注册 MediatR 服务
+
+注册 `MediatR` 服务并添加验证管道和日志管道。
+
+```csharp
+var assembly = typeof(Program).Assembly;
+builder.Services.AddMediatR(config =>
+{
+    config.RegisterServicesFromAssembly(assembly);
+    config.AddOpenBehavior(typeof(ValidationBehavior<,>));
+    config.AddOpenBehavior(typeof(LoggingBehavior<,>));
+});
+```
+
+### 8. 安装 Marten 类库
+
+(1). 在 Basket.API 项目中安装 Marten 类库
+
+```bash
+dotnet add package Marten
+```
+
+(2). 在 Basket.API 项目中注册 Marten 服务
+
+指定 `ShoppingCart` 表中的 `UserName` 字段为主键。
+
+```csharp
+var database = builder.Configuration.GetConnectionString("Database");
+builder.Services.AddMarten(options =>
+    {
+        options.Connection(database);
+        options.Schema.For<ShoppingCart>().Identity(x => x.UserName);
+    })
+    .UseLightweightSessions();
+```
+
+(3). 添加仓储
+
+在 Basket.API 项目中的 `Data` 文件夹中添加 `IBasketRepository` 接口，用于操作购物车数据。
+
+```csharp
+public interface IBasketRepository
+{
+    Task<ShoppingCart> GetBasket(string userName, CancellationToken cancellationToken = default);
+    Task<ShoppingCart> StoreBasket(ShoppingCart shoppingCart, CancellationToken cancellationToken = default);
+    Task<bool> DeleteBasket(string userName, CancellationToken cancellationToken = default);
+}
+```
+
+在 Basket.API 项目中的 `Data` 文件夹中添加 `BasketRepository` 类，实现 `IBasketRepository` 接口。
+
+```csharp
+public class BasketRepository(IDocumentSession documentSession) : IBasketRepository
+{
+    public async Task<ShoppingCart> GetBasket(string userName, CancellationToken cancellationToken = default)
+    {
+        var basket =  await documentSession.LoadAsync<ShoppingCart>(userName, cancellationToken);
+        return basket ?? throw new BasketNotFoundException(userName);
+    }
+
+    public async Task<ShoppingCart> StoreBasket(ShoppingCart shoppingCart,
+        CancellationToken cancellationToken = default)
+    {
+        documentSession.Store(shoppingCart);
+        await documentSession.SaveChangesAsync(cancellationToken);
+        return shoppingCart;
+    }
+
+    public async Task<bool> DeleteBasket(string userName, CancellationToken cancellationToken = default)
+    {
+        documentSession.Delete<ShoppingCart>(userName);
+        await documentSession.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+}
+```
+
+注册 `BasketRepository` 服务
+
+```csharp
+builder.Services.AddScoped<IBasketRepository, BasketRepository>();
+```
+
+### 9. 注册自定义全局异常
+
+(1). 在 Basket.API 中注册自定义全局异常处理中间件
+
+```csharp
+builder.Services.AddExceptionHandler<CustomerExceptionHandler>();
+```
+
+(2). 在 Basket.API 中配置全局异常处理中间件
+
+```csharp
+app.UseExceptionHandler(options => { });
 ```

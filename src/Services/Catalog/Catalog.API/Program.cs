@@ -23,7 +23,7 @@ var databaseConnectionString = builder.Configuration.GetConnectionString("Databa
 if (string.IsNullOrEmpty(databaseConnectionString))
     throw new Exception();
 
-builder.Services.AddMarten(options => { options.Connection(databaseConnectionString); })
+builder.Services.AddMarten(options => options.Connection(databaseConnectionString))
     .UseLightweightSessions();
 
 if (builder.Environment.IsDevelopment())
