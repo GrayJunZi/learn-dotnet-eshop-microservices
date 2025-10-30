@@ -16,6 +16,7 @@ builder.Services.AddMediatR(config =>
 });
 
 var database = builder.Configuration.GetConnectionString("Database");
+var redis = builder.Configuration.GetConnectionString("Redis");
 builder.Services.AddMarten(options =>
     {
         options.Connection(database);
@@ -24,11 +25,24 @@ builder.Services.AddMarten(options =>
     .UseLightweightSessions();
 
 builder.Services.AddScoped<IBasketRepository, BasketRepository>();
+builder.Services.Decorate<IBasketRepository, CachedBasketRepository>();
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redis;
+});
+
 builder.Services.AddExceptionHandler<CustomerExceptionHandler>();
+
+builder.Services.AddHealthChecks()
+    .AddNpgSql(database)
+    .AddRedis(redis);
 
 var app = builder.Build();
 
 app.MapCarter();
-app.UseExceptionHandler(options => {});
+app.UseExceptionHandler(options => { });
+
+app.UseHealthChecks("/health");
 
 app.Run();

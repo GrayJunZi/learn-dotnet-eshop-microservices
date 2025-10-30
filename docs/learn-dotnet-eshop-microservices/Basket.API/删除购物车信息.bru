@@ -1,11 +1,11 @@
 meta {
-  name: 根据类别获取商品列表
+  name: 删除购物车信息
   type: http
-  seq: 4
+  seq: 3
 }
 
-get {
-  url: {{CatalogAPI}}/products/category/A
+delete {
+  url: {{BasketAPI}}/basket/A
   body: none
   auth: inherit
 }

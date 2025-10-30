@@ -1,6 +1,6 @@
 # learn-dotnet-eshop-microservices
 
-.NET 8 微服务 DDD、CQRS、垂直切片架构/整洁架构。
+.NET 9 微服务 DDD、CQRS、垂直切片架构/整洁架构。
 
 ## 一、介绍 (Introduction)
 
@@ -45,7 +45,7 @@
 将开发以下微服务及功能模块：
 
 **商品目录 ( Category )**
-- ASP.NET Core Minimal APIs 以及 .NET 8 和 C# 12 的最新特性
+- ASP.NET Core Minimal APIs 以及 .NET 9 和 C# 12 的最新特性
 - 基于功能文件夹 ( Feature Folders ) 和 垂直切片架构 ( Vertical Slice Architecture ) 实现
 - 基于 MediatR 实现 CQRS 模式
 - 基于 MediatR 与 FluentValidation 的 CQRS 验证管道行为 ( Validation Pipeline Behaviours )
@@ -55,14 +55,14 @@
 - 用于在 Docker 环境中运行多容器的 Dockerfile 和 docker-compose 文件
 
 **购物车 ( Basket )**
-- 遵循 RESTful API 原则的 ASP.NET 8 Web API 应用，实现 CRUD 操作
+- 遵循 RESTful API 原则的 ASP.NET 9 Web API 应用，实现 CRUD 操作
 - 使用 Redis 作为购物车数据库的分布式缓存
 - 实现代理 ( Proxy )、装饰器 ( Decorator )、和缓存旁路 ( Cache-aside ) 设计模式
 - 调用折扣 ( Discount ) gRPC 服务、实现服务间同步通信以计算商品最终架构
 - 使用 MassTransit 和 RabbitMQ 发布 购物车结算 消息队列
 
 **折扣 ( Discount )**
-- ASP.NET 8 gRPC 服务端应用
+- ASP.NET 9 gRPC 服务端应用
 - 与 购物车 ( Basket ) 微服务构建高性能的同步 gRPC 通信
 - 通过定义 Protobuf 消息暴露 gRPC 服务
 - 使用 Entity Framework Core ORM 及数据库迁移 ( Migrations )
@@ -105,11 +105,11 @@
 
 ### 课程目标
 
-- 掌握使用设计模式、原则和最佳实践开发 .NET 8 微服务的核心技能，成为该领域的专家。
+- 掌握使用设计模式、原则和最佳实践开发 .NET 9 微服务的核心技能，成为该领域的专家。
 - 面向软件开发人员和架构师设计。
 - 运用云原生微服务的设计模式与原则，落实行业最佳实践。
-- 深入掌握 C# 12、.NET 8 和 ASP.NET 8 的最新特性，例如 Minimal API、主构造函数等。
-- 全面理解 .NET 8 微服务架构，具备独立设计、开发和部署微服务应用的能力。
+- 深入掌握 C# 12、.NET 9 和 ASP.NET 9 的最新特性，例如 Minimal API、主构造函数等。
+- 全面理解 .NET 9 微服务架构，具备独立设计、开发和部署微服务应用的能力。
 
 ### 源码 ( Source Code )
 
@@ -264,9 +264,9 @@ https://github.com/mehmetozkaya/EShopMicroservices-Udemy-Sections
 **开发团队**
 如果你的团队没有使用微服务和容器系统的经验，那么构建基于微服务的应用程序将会非常困难。
 
-## 三、.NET 8/C# 12
+## 三、.NET 9/C# 12
 
-### 1. .NET 8 新特性
+### 1. .NET 9 新特性
 
 **.NET Aspire**
 专为构建云原生应用程序而设计的开发平台，它提供了一组工具和库，帮助开发人员更轻松地构建、测试和部署微服务架构的应用程序。
@@ -488,7 +488,7 @@ public State PerformOperation(Operation command) => command switch
 - CQRS 模式（命令查询职责分离）：将操作划分为命令(写入数据) 和查询 (读取数据)。
 - 中介者模式（Mediator Pattern）：通过一个中介者来协调对象之间的交互，减少对象间的直接依赖，并简化通信过程。
 - ASP.NET Core 的依赖注入（DI）：依赖注入是一项核心功能，允许我们将所需的依赖项注入到类中。
-- ASP.NET 8 的 Minimal API和路由机制：ASP.NET 8 的 Minimal API 简化了接口定义，提供轻量级的语法用于路由和处理HTTP请求。
+- ASP.NET 9 的 Minimal API和路由机制：ASP.NET 9 的 Minimal API 简化了接口定义，提供轻量级的语法用于路由和处理HTTP请求。
 - ORM 模式（对象关系映射）：通过对象关系映射技术将数据库的交互操作抽象出来，允许开发者能够使用高级代码操作数据库对象。
 
 **类库与NuGet包**
@@ -1631,4 +1631,210 @@ builder.Services.AddExceptionHandler<CustomerExceptionHandler>();
 
 ```csharp
 app.UseExceptionHandler(options => { });
+```
+
+## 九、微服务 Basket.API 构建分布式缓存系统
+
+### 1. 缓存模式
+
+#### 1.1 为什么选择 Redis 作为分布式缓存解决方案？
+
+- Redis 采用键值对的数据存储，以其高性能而闻名。
+- Redis 常被用于缓存、会话存储、发布/订阅系统等领域。
+- Redis 提供了基于内存的数据存储方式，因此数据访问速度快。
+- Redis 提供了多种数据结构，能适用于多种不同的使用场景。
+- Redis 使各种服务能够快速访问共享数据，从而减轻数据库的压力。
+
+#### 1.2 如何在微服务中使用 Redis 作为分布式缓存？
+
+- 实现代理模式(Proxy Pattern)、装饰器模式(Decorator Pattern)，并使用 `Scrutor` 库来实现缓存旁路模式及缓存失效机制。
+- 开发带缓存的仓储，并使用 `Scrutor` 库对其进行装饰。
+- 通过 `docker-compsoe` 在多容器Docker环境中配置 `Redis` 作为分布式缓存。
+
+通过减轻数据库的负担并加快数据检索速度，从而提升系统性能。
+
+#### 1.3 微服务的缓存旁路(Cache-Aside)模式
+
+缓存旁路模式可以通过减少昂贵的数据库调用次数，来提升微服务架构的性能。
+
+1. 当客户端需要访问数据时，它会首先检查这些数据是否已经存在于缓存中。
+2. 如果数据已经存在于缓存中，客户端就会从缓存中获取该数据，并将其返回给调用者。
+3. 如果数据不在缓存中，客户端会从数据库中获取该数据，将其存储到缓存中，然后再将其返回给调用者。
+
+- 某些缓存系统提供了读穿透(read-through)，以及写穿透(write-through)和写回(write-behind)等机制。
+- 对于那些不支持缓存的系统来说，应用程序有责任自行管理缓存，并在发生缓存未命中时及时更新缓存内容。
+- 微服务是实现“缓存旁路”模式的一个很好的例子。通常，我们会使用一种分布式缓存系统，这种缓存系统会被多个服务共同使用。
+
+#### 1.4 微服务的缓存旁路模式的缺点(Drawbacks)
+
+- 缓存可能会增加系统的复杂性，并且并不适用于所有情况。
+- 当数据库或数据存储中的数据发生更新时，可能需要使缓存失效或重新加载缓存中的数据。
+- 这可能需要微服务之间进行额外的协调。
+- 如果缓存位于距离使用它的微服务较远的地方，那么就可能会引入额外的延迟。
+
+#### 1.5 什么是代理模式(Proxy Pattern)和装饰器模式(Decorator Pattern)？
+
+**代理模式：**
+
+- 它为另一个对象提供了一个占位符，用于控制对该对象的访问。这种模式会创建一个代理对象，该代理对象充当那些原本是针对原始对象发出的请求的中间处理者。
+- 懒加载、访问控制以及日志记录功能。这就好比设置了一个“守门人”——在真正访问目标对象之前，会先执行一些额外的操作或检查流程。
+
+**装饰器模式：**
+
+动态地为对象添加新功能，而不会改变其原有的结构。这种方法依赖于一系列装饰器类，这些装饰器类用于扩展原始类的功能，同时无需修改原始类的代码。
+
+#### 1.6 使用 Scrutor 库实现装饰器模式
+
+- `Scrutor` 库是一个用于 .NET 应用程序的容器注册库，它可以帮助我们自动注册和配置依赖注入容器中的服务。
+- 我们可以使用 `Scrutor` 库来实现装饰器模式，从而为我们的服务添加额外的功能。
+- 例如，我们可以使用 `Scrutor` 库来为我们的服务添加缓存功能，从而提高服务的性能。
+
+### 2. 使用 Redis 实现仓储层的缓存机制
+
+#### 2.1 安装 Redis 库
+
+在 Basket.API 项目中安装 Redis 库。
+
+```bash
+dotnet add package Microsoft.Extensions.Caching.StackExchangeRedis
+```
+
+#### 2.2 为仓储层添加缓存装饰器
+
+```csharp
+public class CachedBasketRepository(
+    IBasketRepository basketRepository,
+    IDistributedCache distributedCache) : IBasketRepository
+{
+    public async Task<ShoppingCart> GetBasket(string userName, CancellationToken cancellationToken = default)
+    {
+        var cachedBasket = await distributedCache.GetStringAsync(userName, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(cachedBasket))
+        {
+            return JsonSerializer.Deserialize<ShoppingCart>(cachedBasket);
+        }
+
+        var basket = await basketRepository.GetBasket(userName, cancellationToken);
+        await distributedCache.SetStringAsync(userName, JsonSerializer.Serialize(basket), cancellationToken);
+        return basket;
+    }
+
+    public async Task<ShoppingCart> StoreBasket(ShoppingCart shoppingCart,
+        CancellationToken cancellationToken = default)
+    {
+        var basket = await basketRepository.StoreBasket(shoppingCart, cancellationToken);
+
+        await distributedCache.SetStringAsync(basket.UserName, JsonSerializer.Serialize(basket),
+            cancellationToken);
+
+        return basket;
+    }
+
+    public async Task<bool> DeleteBasket(string userName, CancellationToken cancellationToken = default)
+    {
+        await basketRepository.DeleteBasket(userName, cancellationToken);
+        await distributedCache.RemoveAsync(userName, cancellationToken);
+        return true;
+    }
+}
+```
+
+#### 2.3 配置 Redis 缓存服务
+
+在 Basket.API 项目的 `Program.cs` 文件中配置 Redis 缓存服务。   
+
+```csharp
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+});
+```
+
+### 3. 使用 Scrutor 库注册缓存装饰器
+
+#### 3.1 注册缓存装饰器
+
+在 Basket.API 项目的 `Program.cs` 文件中注册 `CachedBasketRepository` 类。
+
+```csharp
+builder.Services.Decorate<IBasketRepository, CachedBasketRepository>();
+```
+
+### 4. Docker Compose 配置
+
+在 `docker-compose.yaml` 文件中添加 Redis 服务。
+
+```yaml
+services:
+  distribute.cache:
+    image: redis
+```
+
+在 `docker-compose.override.yaml` 文件中添加 Redis 服务的配置。
+
+```yaml
+services:
+  distribute.cache:
+    container_name: distribute.cache
+    restart: always
+    ports:
+      - "6379:6379"
+```
+
+
+### 5. 健康检查
+
+#### 5.1 注册健康检查服务
+
+(1). 在 Basket.API 项目中注册健康检查服务
+
+```csharp
+builder.Services.AddHealthChecks();
+```
+
+#### 5.2 添加 PostgreSQL 健康检查服务
+
+(1). 在 Basket.API 项目中安装 `AspNetCore.HealthChecks.Npgsql` 类库
+
+```bash
+dotnet add package AspNetCore.HealthChecks.Npgsql
+```
+
+(2). 在 Basket.API 项目中注册 PostgreSQL 健康检查
+
+```csharp
+builder.Services.AddHealthChecks()
+    .AddNpgsql(builder.Configuration.GetConnectionString("Database"));
+```
+
+#### 5.3 添加 Redis 健康检查服务
+
+(1). 在 Basket.API 项目中安装 `AspNetCore.HealthChecks.Redis` 类库
+
+```bash
+dotnet add package AspNetCore.HealthChecks.Redis
+```
+
+(2). 在 Basket.API 项目中注册 Redis 健康检查服务
+
+```csharp
+builder.Services.AddHealthChecks()
+    .AddRedis(builder.Configuration.GetConnectionString("Redis"));
+```
+
+#### 5.4 添加健康检查UI中间件
+
+(1). 在 Basket.API 项目中安装 `AspNetCore.HealthChecks.UI.Client` 类库
+
+```bash
+dotnet add package AspNetCore.HealthChecks.UI.Client
+```
+
+(2). 在 Basket.API 项目中添加健康检查 UI 中间件
+
+```csharp
+app.UseHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
 ```

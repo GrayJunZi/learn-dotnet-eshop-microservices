@@ -19,11 +19,8 @@ builder.Services.AddMediatR(config =>
 });
 builder.Services.AddValidatorsFromAssembly(assembly);
 
-var databaseConnectionString = builder.Configuration.GetConnectionString("Database");
-if (string.IsNullOrEmpty(databaseConnectionString))
-    throw new Exception();
-
-builder.Services.AddMarten(options => options.Connection(databaseConnectionString))
+var database = builder.Configuration.GetConnectionString("Database");
+builder.Services.AddMarten(options => options.Connection(database))
     .UseLightweightSessions();
 
 if (builder.Environment.IsDevelopment())
@@ -32,7 +29,7 @@ if (builder.Environment.IsDevelopment())
 builder.Services.AddExceptionHandler<CustomerExceptionHandler>();
 
 builder.Services.AddHealthChecks()
-    .AddNpgSql(databaseConnectionString);
+    .AddNpgSql(database);
 
 var app = builder.Build();
 
