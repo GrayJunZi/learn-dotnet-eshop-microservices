@@ -1,0 +1,23 @@
+meta {
+  name: 删除折扣
+  type: grpc
+  seq: 4
+}
+
+grpc {
+  url: {{DiscountAPI}}
+  method: /discount.DiscountProtoService/DeleteDiscount
+  body: grpc
+  protoPath: ../../src/Services/Discount/Discount.Grpc/Protos/discount.proto
+  auth: inherit
+  methodType: unary
+}
+
+body:grpc {
+  name: message 1
+  content: '''
+    {
+      "productName": "Xiaomi"
+    }
+  '''
+}

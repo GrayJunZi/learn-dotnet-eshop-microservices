@@ -16,7 +16,7 @@
 	- 中介者模式、代理模式、装饰器模式、选项模式
 	- 发布订阅、缓存
 - 服务通信与集成
-	- ASP.NET WebA API
+	- ASP.NET Web API
 	- gRPC
 	- RabbitMQ
 	- MassTransit
@@ -44,7 +44,7 @@
 
 将开发以下微服务及功能模块：
 
-**商品目录 ( Category )**
+**商品目录 ( Catalog )**
 - ASP.NET Core Minimal APIs 以及 .NET 9 和 C# 12 的最新特性
 - 基于功能文件夹 ( Feature Folders ) 和 垂直切片架构 ( Vertical Slice Architecture ) 实现
 - 基于 MediatR 实现 CQRS 模式
@@ -453,7 +453,7 @@ public State PerformOperation(Operation command) => command switch
 | GET    | /products          | 获取商品信息列表        |
 | GET    | /products/{id}     | 获取指定商品信息        |
 | GET    | /products/category | 根据分类获取商品信息列表 |
-| POST   | /prodducts         | 创建商品信息           |
+| POST   | /products          | 创建商品信息           |
 | PUT    | /products/{id}     | 修改商品信息           |
 | DELETE | /products/{id}     | 删除商品信息           |
 
@@ -1837,4 +1837,394 @@ app.UseHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
+```
+
+## 十、微服务 Discount.Grpc
+
+### 1. 微服务通信方式
+
+#### 1.1 同步还是异步这是一个问题
+
+**同步通信：**
+
+- 同步通信是通过 `HTTP`、`HTTPS` 或 `gRPC` 协议来返回响应的。
+- 同步通信指的是，客户端发送请求后，会阻塞等待服务端返回响应，只有当服务端返回响应后，客户端才会继续执行后续逻辑。
+
+**异步通信：**
+
+- 异步通信可以通过 `AMQP( Advanced Message Queuing Protocol )` 协议来实现，客户端通过 `Kafka` 和 `RabbitMQ` 等消息队列来发送和接收消息。
+- 异步通信指的是，客户端发送请求后，不会阻塞等待服务端返回响应，而是继续执行后续逻辑。
+- 异步通信通常用于需要处理耗时操作的场景，例如，调用远程服务、访问数据库等。
+- 异步通信可以提高系统的吞吐量和响应速度，但是也会增加系统的复杂性和维护成本。
+
+#### 1.2 同步通信与最佳实践
+
+- `GraphQL` 是一种基于 `HTTP` 协议的同步通信协议，当微服务中需要处理结构化且灵活的数据时，是一个不错的选择。
+- `gRPC` 在同步通信场景下，性能更好，因为它是基于 `HTTP/2` 协议的，而 `HTTP/2` 协议支持多路复用，即多个请求可以在一个连接上并发传输，而 `HTTP/1.1` 协议只能一个请求一个连接。
+- `WebSocket` 在双向实时通信场景下，性能更好，因为它是基于 `TCP` 协议的，而 `TCP` 协议是一种可靠的、有序的、基于连接的协议，它可以在客户端和服务端之间建立一个持久的连接，从而实现实时通信。
+
+### 2. 高性能的远程过程调用技术 gRPC
+
+- gRPC 是由 Google 开发的一种高性能的远程过程调用技术(Remote Procedure Call)，它基于 `HTTP/2` 协议，支持多路复用、流控、压缩等功能，从而提高了系统的吞吐量和响应速度。
+- gRPC 依赖于 Protocol Buffers 来定义服务接口和数据结构，从而实现了跨语言的通信。
+- Protocol Buffers(简称 Protobuf) 能够为多种语言生成跨平台的客户端和服务端绑定代码(即 Stub 代码)，从而简化了微服务之间的通信。
+
+#### 2.1 gRPC 的工作原理
+
+- RPC 是一种 客户端/服务端 通信方式，它使用函数调用来传递数据，而不是传统的HTTP请求。
+- 在 gRPC 中，客户端应用程序可以像调用本地对象一样，直接调用另一台机器上的服务器应用程序的方法。
+- 在服务器端，会实现这个接口，并运行一个 gRPC 服务器来处理来自客户端的请求。
+- 在客户端，会使用一个 stub 类，该 stub 类提供了与服务器相同的方法。
+- gRPC 客户端和服务器可以在不同的环境中相互通信。
+
+### 3. 微服务 Discount.Grpc 技术分析
+
+- `ASP.NET gRPC API` 构建一个性能卓越的跨服务 gRPC 通信系统，以支持折扣和购物车微服务之间的数据交互。
+- `gRPC` 与 `protobuf` 来暴露 gRPC 服务。
+- `SQLite` 用于存储数据信息。
+- `Entity Framework Core` 用于和SQLite数据库进行交互，通过数据迁移来简化数据访问过程并确保系统高性能运行。
+- `N-Layer 架构` 多层架构实现。
+- `Docker Compose` 将微服务进行容器化部署。
+
+#### 3.1 应用程序架构
+
+**传统N层(N-Layer)架构：**
+
+- **表示层(Presentation Layer)**：负责处理用户请求和响应，与用户进行交互，并将用户输入的数据传入到业务层。
+- **业务逻辑层(Business Logic Layer)**：负责实现应用程序的业务逻辑，与表示层进行通信。
+- **数据访问层(Data Access Layer)**：负责与数据库进行交互，执行数据操作。
+
+**类库与NuGet包**
+
+- 通用工具包：Mapster、FluentValidation
+- gRPC：Grpc.AspNetCore
+- 数据库：Microsoft.EntityFrameworkCore.Sqlite、Microsoft.EntityFrameworkCore.Tools
+
+#### 3.2 目录结构
+
+- `Models` 领域层：存储 SQLite 实体类。
+- `Data` 数据访问层：包含EFCore的 上下文对象和迁移文件。
+- `Service` 业务逻辑层：存储 gRPC 服务。
+- `Protos` 表示层：使用 gRPC 暴露 API 接口。
+
+#### 3.4 微服务 Discount.Grpc 基础数据结构
+
+- 将优惠券信息存储至 SQLite 数据库中。
+- SQLite是一个用C语言编写的库，它实现了一个小巧、快速、自包含、高可靠性且功能完备的SQL数据库引擎。
+- 这种方案因其简单性和高效性而被选中，尤其适用于处理像折扣这类小规模数据的情况。它被直接集成到应用程序中，因此无需额外搭建基础设施。
+
+### 4. 微服务 Discount.Grpc 服务定义
+
+| 方法 (gRPC)       | 请求地址                | 描述    |
+| ----------------- | --------------------- | ------- |
+| GetDiscount       | GetDiscountRequest    | 获取折扣 |
+| CreateDiscount    | CreateDiscountRequest | 创建折扣 |
+| UpdateDiscount    | UpdateDiscountRequest | 更新折扣 |
+| DeleteDiscount    | DeleteDiscountRequest | 删除折扣 |
+
+### 5. 微服务 Discount.Grpc 项目创建
+
+#### 5.1 创建目录结构
+
+(1). 创建 GRPC 项目
+
+```bash
+dotnet new grpc -n "Discount.Grpc"
+```
+
+(3). 将 GRPC 项目添加到解决方案中
+
+```bash
+dotnet sln add ".\Services\Discount\Discount.Grpc"
+```
+
+#### 5.2 微服务 Discount.Grpc 领域模型
+
+折扣的领域模型主要包括：
+
+- `Coupon` - 优惠券
+
+当客户将商品添加到购物车时，微服务 Basket 会调用折扣服务的API，以获取该商品的最新折扣信息。
+
+```csharp
+public class Coupon
+{
+    public int Id { get; set; }
+    public string ProductName { get; set; }
+    public string Description { get; set; }
+    public int Amount { get; set; }
+}
+```
+
+### 6. 集成 Entity Framework Core Sqlite
+
+#### 6.1 安装 Entity Framework Core Sqlite 类库
+
+(1). 安装 Entity Framework Core Sqlite 类库
+
+```bash
+dotnet add package Microsoft.EntityFrameworkCore.Sqlite
+```
+
+(2). 安装 Entity Framework Core Tools 类库
+```bash
+dotnet add package Microsoft.EntityFrameworkCore.Tools
+```
+
+(3). 创建 DbContext 类 并设置种子数据
+
+```csharp
+public class DiscountDbContext : DbContext
+{
+    public DbSet<Coupon> Coupons { get; set; }
+
+    public DiscountDbContext(DbContextOptions<DiscountDbContext> options) : base(options)
+    {
+
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Coupon>().HasData(
+            new Coupon { Id = 1, ProductName = "iPhone X", Description = "iPhone X Discount", Amount = 150 },
+            new Coupon { Id = 2, ProductName = "Huawei", Description = "Huawei Discount", Amount = 150 }
+        );
+    }
+}
+```
+
+(3). 注册 DbContext 服务
+```csharp
+builder.Services.AddDbContext<DiscountDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("Database")));
+```
+
+#### 6.2 数据库迁移
+
+生成迁移文件，并应用到数据库中。
+
+**Visual Studio 下的迁移命令**
+```bash
+Add-Migration InitialCreate
+Update-Database
+```
+
+**.NET Cli 下的迁移命令**
+```bash
+dotnet tool install --glboal dotnet-ef
+dotnet ef migrations add InitialCreate
+dotnet ef database update
+```
+
+#### 6.3 自动迁移
+
+(1). 在 Discount.Grpc 项目中的 Data 文件夹下创建一个 Extensions 静态类。
+
+```csharp
+public static class Extensions
+{
+    public static IApplicationBuilder UseMigration(this IApplicationBuilder app)
+    {
+        using var scope = app.ApplicationServices.CreateScope();
+        using var dbContext = scope.ServiceProvider.GetRequiredService<DiscountDbContext>();
+        dbContext.Database.Migrate();
+        return app;
+    }
+}
+```
+
+(2). 在 Discount.Grpc 项目中的 `Program.cs` 文件中添加以下内容，以启用自动迁移：
+
+```csharp
+app.UseMigration();
+```
+
+
+### 7. 创建 Grpc 服务
+
+(1). 在 Discount.Grpc 项目中的 `Protos` 文件夹下创建 `discount.proto` 文件。
+
+```proto
+syntax = "proto3";
+
+option csharp_namespace = "Discount.Grpc";
+
+package discount;
+
+service DiscountProtoService {
+  rpc GetDiscount (GetDiscountRequest) returns (CouponModel);
+  rpc CreateDiscount (CreateDiscountRequest) returns (CouponModel);
+  rpc UpdateDiscount (UpdateDiscountRequest) returns (CouponModel);
+  rpc DeleteDiscount (DeleteDiscountRequest) returns (DeleteDiscountResponse);
+}
+
+message GetDiscountRequest {
+  string productName = 1;
+}
+
+message CouponModel {
+  int32 id = 1;
+  string productName = 2;
+  string description = 3;
+  int32 amount = 4;
+}
+
+message CreateDiscountRequest {
+  CouponModel coupon = 1;
+}
+
+message UpdateDiscountRequest {
+  CouponModel coupon = 1;
+}
+
+message DeleteDiscountRequest {
+  string productName = 1;
+}
+
+message DeleteDiscountResponse {
+  bool success = 1;
+}
+```
+
+(2). 在 Discount.Grpc 项目中的 `Services` 文件夹下创建 `DiscountService` 类。
+
+```csharp
+public class DiscountService(
+    DiscountDbContext dbContext,
+    ILogger<DiscountService> logger)
+    : DiscountProtoService.DiscountProtoServiceBase
+{
+    public override async Task<CouponModel> GetDiscount(GetDiscountRequest request, ServerCallContext context)
+    {
+        var coupon = await dbContext.Coupons.FirstOrDefaultAsync(x => x.ProductName == request.ProductName)
+                     ?? new Coupon { ProductName = "No Discount", Amount = 0, Description = "No Discount" };
+
+        logger.LogInformation("Discount is retrieved for ProductName: {ProductName}, {Amount}", coupon.ProductName,
+            coupon.Amount);
+
+        return coupon.Adapt<CouponModel>();
+    }
+
+    public override async Task<CouponModel> CreateDiscount(CreateDiscountRequest request, ServerCallContext context)
+    {
+        var coupon = request.Coupon.Adapt<Coupon>();
+        if (coupon is null)
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid request"));
+
+        dbContext.Coupons.Add(coupon);
+        await dbContext.SaveChangesAsync();
+
+        logger.LogInformation("Discount is successfully created for ProductName: {ProductName}", coupon.ProductName);
+
+        return coupon.Adapt<CouponModel>();
+    }
+
+    public override async Task<CouponModel> UpdateDiscount(UpdateDiscountRequest request, ServerCallContext context)
+    {
+        var coupon = request.Coupon.Adapt<Coupon>();
+        if (coupon is null)
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid request"));
+
+        dbContext.Coupons.Update(coupon);
+        await dbContext.SaveChangesAsync();
+
+        logger.LogInformation("Discount is successfully updated for ProductName: {ProductName}", coupon.ProductName);
+
+        return coupon.Adapt<CouponModel>();
+    }
+
+    public override async Task<DeleteDiscountResponse> DeleteDiscount(DeleteDiscountRequest request,
+        ServerCallContext context)
+    {
+        var coupon = await dbContext.Coupons.FirstOrDefaultAsync(x => x.ProductName == request.ProductName);
+
+        if (coupon is null)
+            throw new RpcException(new Status(StatusCode.NotFound,
+                $"Discount with ProductName={request.ProductName} is not found."));
+
+        dbContext.Coupons.Remove(coupon);
+        await dbContext.SaveChangesAsync();
+
+        logger.LogInformation("Discount is successfully deleted for ProductName: {ProductName}", coupon.ProductName);
+
+        return new DeleteDiscountResponse { Success = true };
+    }
+}
+```
+
+(3). 在 Discount.Grpc 项目中的 `Discount.Grpc.csproj` 文件中添加以下内容，以启用 protobuf 服务：
+```xml
+<ItemGroup>
+    <Protobuf Include="Protos\discount.proto" GrpcServices="Server" />
+</ItemGroup>
+```
+
+(4). 在 Discount.Grpc 项目中的 `Program.cs` 文件中添加以下内容，以启用 gRPC 服务：
+
+```csharp
+app.MapGrpcService<DiscountService>();
+```
+
+### 8. Docker Compose 编排
+
+#### 8.1 添加 Dockerfile 配置
+
+在 Discount.Grpc 项目中添加 `Dockerfile` 文件，以定义微服务的 Docker 镜像。
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+USER $APP_UID
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
+
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY ["Services/Discount/Discount.Grpc/Discount.Grpc.csproj", "Services/Discount/Discount.Grpc/"]
+RUN dotnet restore "Services/Discount/Discount.Grpc/Discount.Grpc.csproj"
+COPY . .
+WORKDIR "/src/Services/Discount/Discount.Grpc"
+RUN dotnet build "./Discount.Grpc.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "./Discount.Grpc.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "Discount.Grpc.dll"]
+```
+
+#### 8.2 添加 Docker Compose 配置
+
+(1). 在 `docker-compose.yaml` 文件中添加以下内容，以定义微服务的基础配置。
+
+```yaml
+services:
+  discount.grpc:
+    image: ${DOCKER_REGISTRY-}discount.grpc
+    build:
+      context: .
+      dockerfile: Services/Discount/Discount.Grpc/Dockerfile
+```
+
+(2). 在 `docker-compose.override.yaml` 文件中添加以下内容，以定义本地开发环境的 Docker Compose 配置。
+
+```yaml
+services:  
+  discount.grpc:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=123456
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/home/app/.aspnet/https/localhost.pfx
+      - ConnectionStrings__Database=Data Source=DiscountDb
+    ports:
+      - "6002:8080"
+      - "6062:8081"
+    volumes:
+      - ${USERPROFILE}/.aspnet/Https:/home/app/.aspnet/https:ro
 ```

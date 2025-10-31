@@ -1,0 +1,23 @@
+meta {
+  name: 获取折扣
+  type: grpc
+  seq: 1
+}
+
+grpc {
+  url: {{DiscountAPI}}
+  method: /discount.DiscountProtoService/GetDiscount
+  body: grpc
+  protoPath: ../../src/Services/Discount/Discount.Grpc/Protos/discount.proto
+  auth: inherit
+  methodType: unary
+}
+
+body:grpc {
+  name: message 1
+  content: '''
+    {
+      "productName": "iPhone X"
+    }
+  '''
+}

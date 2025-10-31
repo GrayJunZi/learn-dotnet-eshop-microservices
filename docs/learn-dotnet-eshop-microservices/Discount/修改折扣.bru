@@ -1,0 +1,27 @@
+meta {
+  name: 修改折扣
+  type: grpc
+  seq: 3
+}
+
+grpc {
+  url: {{DiscountAPI}}
+  method: /discount.DiscountProtoService/UpdateDiscount
+  body: grpc
+  protoPath: ../../src/Services/Discount/Discount.Grpc/Protos/discount.proto
+  auth: inherit
+  methodType: unary
+}
+
+body:grpc {
+  name: message 1
+  content: '''
+    {
+      "coupon": {
+        "productName": "Xiaomi",
+        "description": "Xiaomi description.",
+        "amount": 999
+      }
+    }
+  '''
+}
