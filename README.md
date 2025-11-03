@@ -301,7 +301,7 @@ https://github.com/mehmetozkaya/EShopMicroservices-Udemy-Sections
 主要构造函数的适用范围不止`record`类型可以使用。现在，这些构造函数的参数在整个类体中都是有效的。
 
 ```csharp
-public class Person(string Name, int Age)
+public class Person(string name, int age)
 {
     public string Name { get; } => name;
     public int Age { get; } => age;
@@ -1112,7 +1112,7 @@ public class CatalogInitialData : IInitialData
         if (await session.Query<Product>().AnyAsync(cancellation))
             return;
 
-        session.Store<Product>();
+        session.Store(GetPreconfiguredProducts());
         await session.SaveChangesAsync(cancellation);
     }
 
@@ -1215,7 +1215,7 @@ public class GetProductsEndpoint : ICarterModule
             .MapGet("/products", async ([AsParameters] GetProductsRequest request,ISender sender) =>
             {
                 var query = request.Adapt<GetProductsQuery>();
-                var result = await sender.Send(request);
+                var result = await sender.Send(query);
 
                 var response = result.Adapt<GetProductsResponse>();
                 return Results.Ok(response);
@@ -1649,7 +1649,7 @@ app.UseExceptionHandler(options => { });
 
 - 实现代理模式(Proxy Pattern)、装饰器模式(Decorator Pattern)，并使用 `Scrutor` 库来实现缓存旁路模式及缓存失效机制。
 - 开发带缓存的仓储，并使用 `Scrutor` 库对其进行装饰。
-- 通过 `docker-compsoe` 在多容器Docker环境中配置 `Redis` 作为分布式缓存。
+- 通过 `docker-compose` 在多容器Docker环境中配置 `Redis` 作为分布式缓存。
 
 通过减轻数据库的负担并加快数据检索速度，从而提升系统性能。
 
@@ -2011,7 +2011,7 @@ Update-Database
 
 **.NET Cli 下的迁移命令**
 ```bash
-dotnet tool install --glboal dotnet-ef
+dotnet tool install --global dotnet-ef
 dotnet ef migrations add InitialCreate
 dotnet ef database update
 ```
@@ -2039,8 +2039,15 @@ public static class Extensions
 app.UseMigration();
 ```
 
+### 7. 安装 Mapster 类库
 
-### 7. 创建 Grpc 服务
+在 Discount.Grpc 项目中安装 Mapster 类库，以实现对象映射。
+
+```bash
+dotnet add package Mapster
+```
+
+### 8. 创建 Grpc 服务
 
 (1). 在 Discount.Grpc 项目中的 `Protos` 文件夹下创建 `discount.proto` 文件。
 
@@ -2165,9 +2172,9 @@ public class DiscountService(
 app.MapGrpcService<DiscountService>();
 ```
 
-### 8. Docker Compose 编排
+### 9. Docker Compose 编排
 
-#### 8.1 添加 Dockerfile 配置
+#### 9.1 添加 Dockerfile 配置
 
 在 Discount.Grpc 项目中添加 `Dockerfile` 文件，以定义微服务的 Docker 镜像。
 
@@ -2197,7 +2204,7 @@ COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "Discount.Grpc.dll"]
 ```
 
-#### 8.2 添加 Docker Compose 配置
+#### 9.2 添加 Docker Compose 配置
 
 (1). 在 `docker-compose.yaml` 文件中添加以下内容，以定义微服务的基础配置。
 
@@ -2227,4 +2234,122 @@ services:
       - "6062:8081"
     volumes:
       - ${USERPROFILE}/.aspnet/Https:/home/app/.aspnet/https:ro
+```
+
+## 十一、从 Basket 微服务中调用 Discount 相关的 Grpc 服务
+
+- gRPC 客户端的集成：Basket 服务将作为 gRPC 客户端，调用微服务 Discount 下的 gRPC 服务。
+- 消费折扣服务：折扣将应用于购物车中的商品，并据此计算出最终价格。
+- 重新进行容器化处理：确保 Basket 服务与 Discount 服务进行通信。
+
+### 1. 在 Basket 服务中引用 Discount 服务中的 Proto 文件
+
+(1). 在 `Basket.API.csproj` 文件中添加以下内容，以引用 Discount 服务中的 Proto 文件。
+
+```xml
+<ItemGroup>
+    <Protobuf Include="..\..\Discount\Discount.Grpc\Protos\discount.proto" GrpcServices="Client">
+        <Link>Protos\discount.proto</Link>
+    </Protobuf>
+</ItemGroup>
+```
+
+(2). 安装 `Grpc.AspNetCore` 包，以启用 gRPC 客户端功能。
+
+```bash
+dotnet add package Grpc.AspNetCore
+```
+
+### 2. 在 Basket 服务中调用 Discount 服务并计算最终价格
+
+注入 `DiscountProtoServiceClient` 客户端，以调用 Discount 服务中的 gRPC 方法。
+
+```csharp
+
+public class StoreBasketHandler(
+    IBasketRepository basketRepository,
+    DiscountProtoService.DiscountProtoServiceClient discountProtoServiceClient)
+    : ICommandHandler<StoreBasketCommand, StoreBasketResult>
+{
+    public async Task<StoreBasketResult> Handle(StoreBasketCommand command, CancellationToken cancellationToken)
+    {
+        await DeductDiscount(command.Cart, cancellationToken);
+        
+        var basket = await basketRepository.StoreBasket(command.Cart, cancellationToken);
+
+        return new StoreBasketResult(basket.UserName);
+    }
+
+    private async Task DeductDiscount(ShoppingCart cart, CancellationToken cancellationToken)
+    {
+        foreach (var item in cart.Items)
+        {
+            var coupon = await discountProtoServiceClient.GetDiscountAsync(new GetDiscountRequest
+            {
+                ProductName = item.ProductName,
+            }, cancellationToken: cancellationToken);
+
+            item.Price -= coupon.Amount;
+        }
+    }
+}
+```
+
+### 3. 配置 gRPC 客户端
+
+在 Basket.API 项目中的 `Program.cs` 文件中添加以下内容，以注册 `DiscountProtoServiceClient` 客户端。
+
+```csharp
+builder.Services.AddGrpcClient<DiscountProtoService.DiscountProtoServiceClient>(options =>
+{
+    options.Address = new Uri(builder.Configuration["GrpcSettings:DiscountUrl"]);
+});
+```
+
+### 4. Docker Compose 配置
+
+#### 4.1 修改 Basket 服务配置
+
+在 `docker-compose.override.yaml` 文件中修改 `basket.api` 配置信息，以支持对 Discount 服务的调用。
+
+```yaml
+services:
+  basket.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=123456
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/home/app/.aspnet/https/localhost.pfx
+      - ConnectionStrings__Database=Server=basket.db;Port=5432;Database=BasketDb;User Id=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__Redis=distribute.cache:6379
+      - GrpcSettings__DiscountUrl=https://discount.grpc:8081
+    depends_on:
+      - basket.db
+      - distribute.cache
+      - discount.grpc
+    ports:
+      - "6001:8080"
+      - "6061:8081"
+    volumes:
+      - ${USERPROFILE}/.aspnet/Https:/home/app/.aspnet/https:ro
+```
+
+#### 4.2 处理证书问题
+
+当 Basket.API 服务调用 Discount.Grpc 时会出现证书问题，可以通过以下代码忽略证书。
+
+```csharp
+builder.Services.AddGrpcClient<DiscountProtoService.DiscountProtoServiceClient>(options =>
+{
+    options.Address = new Uri(builder.Configuration["GrpcSettings:DiscountUrl"]);
+}).ConfigurePrimaryHttpMessageHandler(() =>
+{
+    var handler = new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+    };
+    
+    return handler;
+});
 ```
