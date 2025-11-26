@@ -1,0 +1,16 @@
+meta {
+  name: 根据客户查询订单
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{OrderingAPI}}/orders/customer/58c49479-ec65-4de2-86e7-033c546291aa
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

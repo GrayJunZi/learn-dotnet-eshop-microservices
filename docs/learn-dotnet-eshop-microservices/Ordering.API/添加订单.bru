@@ -1,0 +1,61 @@
+meta {
+  name: 添加订单
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{OrderingAPI}}/orders
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "Order": {
+      "CustomerId": "58C49479-EC65-4DE2-86E7-033C546291AA",
+      "OrderName": "ORD_1",
+      "ShippingAddress": {
+        "Name": "Valentina",
+        "Email": "vale@mail.com",
+        "AddressLine": "A",
+        "Country": "USA",
+        "State": "Oklahoma",
+        "ZipCode": "41248"
+      },
+      "BillingAddress": {
+        "Name": "Valentina",
+        "Email": "vale@mail.com",
+        "AddressLine": "A",
+        "Country": "USA",
+        "State": "Oklahoma",
+        "ZipCode": "41248"
+      },
+      "Payment": {
+        "CardName": "CARD_1",
+        "CardNumber": "123-456-789",
+        "Expiration": "12/29",
+        "Cvv": "455",
+        "PaymentMethod": 1
+      },
+      "Status": 2,
+      "OrderItems": [
+        {
+          "ProductId": "6EC1297B-EC0A-4AA1-BE25-6726E3B51A27",
+          "Quantity": 2,
+          "Price": 1999
+        },
+        {
+          "ProductId": "4F136E9F-FF8C-4C1F-9A33-D12F689BDAB8",
+          "Quantity": 1,
+          "Price": 4999
+        }
+      ]
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

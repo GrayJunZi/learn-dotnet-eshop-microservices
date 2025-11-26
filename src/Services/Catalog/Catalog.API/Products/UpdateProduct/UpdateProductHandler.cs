@@ -1,5 +1,4 @@
 ﻿using Catalog.API.Exceptions;
-using Microsoft.CodeAnalysis;
 
 namespace Catalog.API.Products.UpdateProduct;
 

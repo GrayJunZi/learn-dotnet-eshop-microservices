@@ -1,6 +1,6 @@
 # learn-dotnet-eshop-microservices
 
-.NET 9 微服务 DDD、CQRS、垂直切片架构/整洁架构。
+.NET 10 微服务 DDD、CQRS、垂直切片架构/整洁架构。
 
 ## 一、介绍 (Introduction)
 
@@ -45,7 +45,7 @@
 将开发以下微服务及功能模块：
 
 **商品目录 ( Catalog )**
-- ASP.NET Core Minimal APIs 以及 .NET 9 和 C# 12 的最新特性
+- ASP.NET Core Minimal APIs 以及 .NET 10 和 C# 12 的最新特性
 - 基于功能文件夹 ( Feature Folders ) 和 垂直切片架构 ( Vertical Slice Architecture ) 实现
 - 基于 MediatR 实现 CQRS 模式
 - 基于 MediatR 与 FluentValidation 的 CQRS 验证管道行为 ( Validation Pipeline Behaviours )
@@ -55,14 +55,14 @@
 - 用于在 Docker 环境中运行多容器的 Dockerfile 和 docker-compose 文件
 
 **购物车 ( Basket )**
-- 遵循 RESTful API 原则的 ASP.NET 9 Web API 应用，实现 CRUD 操作
+- 遵循 RESTful API 原则的 ASP.NET 10 Web API 应用，实现 CRUD 操作
 - 使用 Redis 作为购物车数据库的分布式缓存
 - 实现代理 ( Proxy )、装饰器 ( Decorator )、和缓存旁路 ( Cache-aside ) 设计模式
 - 调用折扣 ( Discount ) gRPC 服务、实现服务间同步通信以计算商品最终架构
 - 使用 MassTransit 和 RabbitMQ 发布 购物车结算 消息队列
 
 **折扣 ( Discount )**
-- ASP.NET 9 gRPC 服务端应用
+- ASP.NET 10 gRPC 服务端应用
 - 与 购物车 ( Basket ) 微服务构建高性能的同步 gRPC 通信
 - 通过定义 Protobuf 消息暴露 gRPC 服务
 - 使用 Entity Framework Core ORM 及数据库迁移 ( Migrations )
@@ -105,11 +105,11 @@
 
 ### 课程目标
 
-- 掌握使用设计模式、原则和最佳实践开发 .NET 9 微服务的核心技能，成为该领域的专家。
+- 掌握使用设计模式、原则和最佳实践开发 .NET 10 微服务的核心技能，成为该领域的专家。
 - 面向软件开发人员和架构师设计。
 - 运用云原生微服务的设计模式与原则，落实行业最佳实践。
-- 深入掌握 C# 12、.NET 9 和 ASP.NET 9 的最新特性，例如 Minimal API、主构造函数等。
-- 全面理解 .NET 9 微服务架构，具备独立设计、开发和部署微服务应用的能力。
+- 深入掌握 C# 12、.NET 10 和 ASP.NET 10 的最新特性，例如 Minimal API、主构造函数等。
+- 全面理解 .NET 10 微服务架构，具备独立设计、开发和部署微服务应用的能力。
 
 ### 源码 ( Source Code )
 
@@ -264,9 +264,9 @@ https://github.com/mehmetozkaya/EShopMicroservices-Udemy-Sections
 **开发团队**
 如果你的团队没有使用微服务和容器系统的经验，那么构建基于微服务的应用程序将会非常困难。
 
-## 三、.NET 9/C# 12
+## 三、.NET 10/C# 12
 
-### 1. .NET 9 新特性
+### 1. .NET 10 新特性
 
 **.NET Aspire**
 专为构建云原生应用程序而设计的开发平台，它提供了一组工具和库，帮助开发人员更轻松地构建、测试和部署微服务架构的应用程序。
@@ -488,7 +488,7 @@ public State PerformOperation(Operation command) => command switch
 - CQRS 模式（命令查询职责分离）：将操作划分为命令(写入数据) 和查询 (读取数据)。
 - 中介者模式（Mediator Pattern）：通过一个中介者来协调对象之间的交互，减少对象间的直接依赖，并简化通信过程。
 - ASP.NET Core 的依赖注入（DI）：依赖注入是一项核心功能，允许我们将所需的依赖项注入到类中。
-- ASP.NET 9 的 Minimal API和路由机制：ASP.NET 9 的 Minimal API 简化了接口定义，提供轻量级的语法用于路由和处理HTTP请求。
+- ASP.NET 10 的 Minimal API和路由机制：ASP.NET 10 的 Minimal API 简化了接口定义，提供轻量级的语法用于路由和处理HTTP请求。
 - ORM 模式（对象关系映射）：通过对象关系映射技术将数据库的交互操作抽象出来，允许开发者能够使用高级代码操作数据库对象。
 
 **类库与NuGet包**
@@ -2352,4 +2352,1787 @@ builder.Services.AddGrpcClient<DiscountProtoService.DiscountProtoServiceClient>(
     
     return handler;
 });
+```
+
+## 十二、微服务 Ordering.API
+
+使用 DDD、CQRS 和 Clean Architecture 构建微服务系统。
+
+### 1. 微服务 Ordering 整洁架构分层
+
+**领域层 (Domain Layer)：**
+- 战术层面的DDD实现方式，包括实体、值对象和聚合体。
+- 在DDD中贫血领域模型与充血领域模型的选择。
+- 领域事件与集成事件。
+
+**基础设施层 (Infrastructure Layer)：**
+- Entity Framework Core 9 中的代码优先模式、数据迁移以及SQL Server数据库连接。
+- Entity Framework Core 9 中的关系 与 DDD 值对象映射（使用 ComplexType 和 ComplexProperty）。
+- 程序启动时自动迁移并填充种子数据。
+- Entity Framework Core 9 拦截器（SaveChangesInterceptor）的使用方法。
+
+**应用层 (Application Layer)：**
+- 使用 MediatR 实现 CQRS模式，包括命令对象与命令处理器。
+- 使用 MediatR 管道行为组件进行验证以及记录日志。
+- 使用 MediatR 的 INotificationHandler 处理器来处理领域事件(Domain Event)。
+
+**API层 (API Layer)：**
+- 使用 Carter 来定义最小化的 API接口。
+- 自定义异常处理机制。
+
+
+### 2. 微服务 Ordering.API 的应用场景
+
+#### 2.1 订单管理
+
+- 客户可以添加、删除、更新订单中的商品。
+- 客户可以查看订单中的商品列表。
+
+#### 2.2 订单结算
+
+- 客户进行购物车结算：使用 `MassTransit` 组件，从RabbitMQ中接收购物车结算 `BasketCheckout` 事件。
+- 订单履约(Order Fulfilment)：
+  - 订单创建后，通过 `MassTransit` 组件将订单发送到消息队列。
+  - 订单服务监听消息队列，一旦收到订单消息，就会创建一个新的订单。
+- 触发 `OrderCreated` 领域事件，该事件会引发集成事件的执行。
+
+### 3. 微服务 Ordering.API 接口定义
+
+| 方法	  | 请求地址                       | 描述                  |
+| ------ | ----------------------------- | -------------------- |
+| GET    | /orders                       | 分页获取订单信息        |
+| GET    | /orders/{orderName}           | 按订单名称获取订单信息   |
+| GET    | /orders/customer/{customerId} | 根据分类获取商品信息列表 |
+| POST   | /orders                       | 创建订单信息           |
+| PUT    | /orders                       | 修改订单信息           |
+| DELETE | /orders/{id}                  | 删除订单信息           |
+
+### 4. 微服务 Ordering 的基础数据结构
+
+订单微服务将使用以下存储系统：
+
+1. SQL Server 关系型数据库
+
+- SQL Server 将用于存储订单信息以及订单中的各项明细信息。
+- Entity Framework Core 被选为ORM工具，采用了 代码优先(Code-First) 的开发方法。
+- 领域模型被映射到了 Entity Framework Core 实体中，并遵循DDD中的一些概念，例如，聚合根与值对象。
+
+### 5. 微服务 Ordering 技术分析
+
+#### 5.1 DDD、CQRS与整洁架构(Clean Architecture)
+
+整洁架构被分为四个层次，各个项目都遵循这种架构规范进行开发，其中类库项目在开发过程中也会参照这些规范进行设计。
+
+#### 5.2 模式与原则（Patterns & Principles）
+
+共同原则：
+- SOLID、KISS、YAGNI、SoC、DIP 原则与依赖注入为基础。
+
+领域层模式：
+- 领域实体模式与实体基类
+- 贫血领域模型与充血领域模型
+- 值对象模式
+- 聚合模式，也被称为聚合根或根实体
+- 强类型 IDs 模式
+- 领域事件与集成事件
+
+基础设施数据层模式：
+- 仓储模式
+- EF Core ORM，代码优先模式、迁移、数据库初始化(种子数据)
+- 值对象复合类型与EF聚合根实体
+- 使用 EF Core 中的 ModelBuilder 进行实体配置
+- 使用 EF Core 与 MediatR 发起并处理领域事件
+
+领域层模式：
+- CQRS 模式
+- 命令与命令处理模式
+- 中介者模式与 MediatR 管道行为模式 
+- FluentValidation 与 日志
+
+展示层模式：
+- Minimal APIs
+
+交互流程： 
+
+Domain -> Infrastructure -> Application -> Presentation
+
+#### 5.3 设计原则 - SOLID
+
+- 单一职责原则(Single Responsibility)，每个组件与模块都应只负责一项功能。
+- 开闭原则(Open-Closed Principle)，我们应该确保它能够不改变现有架构的前提下进行扩展。
+- 里氏替换原则(Liskov Substitution Principle)，系统之间可以很容易地进行相互替换。在我们的例子中，我们可以使用插件服务来实现这种替换，因为这些插件服务可以非常方便地进行替换。
+- 接口隔离原则(Interface Segregation Principle)，任何代码都不应被迫依赖于那么它不需要的接口。
+- 依赖倒置原则(Dependency Inversion Principle)，高层模块不应该依赖于低层模块，而应该依赖于抽象。
+
+#### 5.4 设计原则 - 职责分离(SoC)
+
+- 职责分离(Separation of Concerns, SoC)，每个组件或模块都应该只负责一项功能，而不是多项功能。
+- 将软件系统分解为多个组件或模块，通过拆分系统来降低其复杂性。
+- 高内聚(High Cohesion)，组件或模块内部的元素应该紧密相关，而不是松散耦合。
+- 低耦合(Low Coupling)，组件或模块之间的依赖关系应该最小化，以减少系统的维护成本。
+
+#### 5.5 领域驱动设计(Domain-Driven Design, DDD)
+
+整洁架构的特点：模块化、可扩展、可测试且易于维护。
+
+- 领域驱动设计自2003年 Eric Evans 提出以来，已经成为了一种非常流行的软件设计方法。
+- 它的核心理念是将软件系统的设计与领域问题进行紧密的结合，以实现对业务逻辑的准确理解和实现。
+- DDD 强调领域模型的重要性，领域模型是对业务领域的抽象和建模，它包含了业务规则、业务逻辑和业务概念。
+- DDD 还强调领域驱动的开发方法，即开发人员应该直接参与到业务领域的讨论和建模中，而不是依赖于技术实现。
+- DDD 还强调领域事件的重要性，领域事件是领域模型中的一种特殊类型的事件，它表示业务领域中的重要变化或发生。
+- DDD 还强调领域服务的重要性，领域服务是领域模型中的一种特殊类型的服务，它表示业务领域中的一些操作或功能，而不是简单的 CRUD 操作。
+
+#### 5.6 DDD 类型
+
+**战略级DDD(Strategic DDD)**
+
+- 理解并构建业务领域模型。
+- 涉及到识别不同的领域、它们的子领域，以及这些领域之间是如何相互作用的。
+
+**战术级DDD(Tactical DDD)**
+
+- 提供了实现细节以及相关的设计模式
+- 包括实体、值对象、聚合根、仓储、领域事件、集成事件、领域服务等。
+
+#### 5.7 DDD 概念
+
+**领域(Domain)**
+
+它代表了业务领域或业务需求范围。
+
+**子领域(SubDomain)**
+
+它代表了整个领域内的某个特定专业领域。
+
+**通用语言(Ubiquitous Language)**
+
+是开发人员与领域专家之间共同使用的一套通用语言，旨在确保沟通的清晰性和一致性，这套语言将贯穿于整个开发过程中。
+
+**有界上下文(Bounded Context)**
+
+- 将那些彼此紧密相关的范围归为一类，我们可以将这些范围视为逻辑上的边界。
+- 这种逻辑边界将复杂问题领域中的各个子问题划分成独立自洽的部分。
+- 每个有界上下文都有用自己的数据库架构、代码模型，以及负责开发该系统的团队。
+
+**上下文映射模式(Context Mapping Pattern)**
+
+- 确定应用程序中所有的有界上下文及其逻辑边界。
+- 它是一种用于界定不同领域之间逻辑的方法。
+
+**有界上下文模式(Bounded Context Pattern)**
+
+有界上下文模式是微服务拆分过程中的核心设计模式，特别适用于处理需要高度协作且具有一定复杂性的领域问题。
+
+在领域驱动设计(DDD)中，每个领域模型都会定义其特有的通用语言，即"领域特定语言"，并将系统结构划分为多个独立的组件，这些组件就是所谓的"有界上下文"。
+
+DDD解决复杂问题的关键方法是将整体拆分为更小、更易处理的子问题。一个复杂领域通常包含多个子域，其中一些子域可以组合成组，共同遵循特定规则并承担相应职责。
+
+"有界上下文"本质上是一种逻辑边界，它具有双重含义：一方面是将功能上紧密相关的范围组合在一起；另一方面是将复杂问题领域中相对独立、自成一体的子问题部分明确区分开来。
+
+从战略层面来看，领域驱动设计着重于定义系统的大规模架构模型，明确业务规则，实现单元间的松耦合设计，并构建各单元之间的上下文关系图。
+
+而在战术层面，领域驱动设计则更关注软件的具体实现过程，提供了一系列实用的设计模式，帮助开发人员构建出可行且高效的软件系统。
+
+#### 5.8 整洁架构(Clean Architecture)
+
+该设计方法由 Robert C. Martin 提出，它的核心理念是将软件系统的设计与业务领域进行紧密的结合，以实现对业务逻辑的准确理解和实现。
+
+**框架独立性(Independent of Frameworks)**
+
+该系统并未与特定的框架绑定，因此能适应各种框架和工具的变化。
+
+**可测试(Testable)**
+
+业务规则可以在不使用UI、数据库、Web服务器或任何外部组件的情况下进行测试。
+
+**与UI无关(UI Agnostic)**
+
+UI可以很容易地进行更换，而无需对系统的其他部分进行任何修改。
+
+**与数据库无关(Database Agnostic)**
+
+业务规则并不依赖于特定的数据库，而是与底层的数据存储系统相互分离。
+
+**与外部系统无关(External System Agnostic)**
+
+业务规则对外部世界一无所知，它们处于孤立的状态之中。
+
+#### 5.9 整洁架构的层次结构
+
+**实体层(Entities Layer)/领域层(Domain Layer)**
+
+- 包括了适用于整个企业的业务规则。
+- 实体封装了最为通用且层次最高的规则。
+
+**用例层(Use Cases Layer)/应用层(Application Layer)**
+
+- 包含了特定于该应用程序的业务规则。
+- 涵盖了系统中所有的用例，并对这些用例进行了实现。
+
+**接口适配层(Interface Adapters Layer)/基础设施层(Infrastructure Layer)**
+
+- 将数据从最适合特定用例和数据主体的格式转换成最适合外部系统使用的格式。
+
+**框架与驱动层(Frameworks and Drivers Layer)/基础设施与外部因素(Infrastructure/External Concerns)**
+
+- 最外层由各种框架和工具组成，例如数据库和Web框架等。
+- 通过包括UI、数据库、外部接口等。
+
+### 6. 微服务 Ordering.API 项目创建
+
+#### 6.1 创建 Ordering.Domain 领域层
+
+(1). 创建类库项目
+
+```bash
+dotnet new classlib -n "Ordering.Domain"
+```
+
+(2). 将 Domain 项目添加到解决方案中
+
+```bash
+dotnet sln add ".\Services\Ordering\Ordering.Domain"
+```
+
+#### 6.2 创建 Ordering.Application 应用层
+
+(1). 创建类库项目
+
+```bash
+dotnet new classlib -n "Ordering.Application"
+```
+
+(2). 将 Application 项目添加到解决方案中
+
+```bash
+dotnet sln add ".\Services\Ordering\Ordering.Application"
+```
+
+(3). 在 Ordering.Application 项目中添加对 BuildingBlocks 类库的引用
+
+```bash
+dotnet add ".\Services\Ordering\Ordering.Application" reference ".\BuildingBlocks\BuildingBlocks"
+```
+
+(4). 在 Ordering.Application 项目中添加对 Domain 项目的引用
+
+```bash
+dotnet add ".\Services\Ordering\Ordering.Application" reference ".\Services\Ordering\Ordering.Domain"
+```
+
+#### 6.3 创建 Ordering.Infrastructure 基础设施层
+
+(1). 创建类库项目
+
+```bash
+dotnet new classlib -n "Ordering.Infrastructure"
+```
+
+(2). 将 Infrastructure 项目添加到解决方案中
+
+```bash
+dotnet sln add ".\Services\Ordering\Ordering.Infrastructure"
+```
+
+(3). 在 Ordering.Infrastructure 项目中添加对 Application 项目的引用
+
+```bash
+dotnet add ".\Services\Ordering\Ordering.Infrastructure" reference ".\Services\Ordering\Ordering.Application"
+```
+
+#### 6.4 创建 Ordering.API 项目
+
+(1). 创建 Web API 项目
+
+```bash
+dotnet new webapi -n "Ordering.API"
+```
+
+(2). 将 Web API 项目添加到解决方案中
+
+```bash
+dotnet sln add ".\Services\Ordering\Ordering.API"
+```
+
+(3). 在 Ordering.API 项目中添加对 Application 项目的引用
+
+```bash
+dotnet add ".\Services\Ordering\Ordering.API" reference ".\Services\Ordering\Ordering.Application"
+```
+
+(4). 在 Ordering.API 项目中添加对 Infrastructure 项目的引用
+
+```bash
+dotnet add ".\Services\Ordering\Ordering.API" reference ".\Services\Ordering\Ordering.Infrastructure"
+```
+
+#### 6.5 依赖注入分离
+
+在各层中都增加一个 `DependencyInjection` 文件夹，用于存放依赖注入相关的代码。
+
+(1). 在 Ordering.API 项目中添加依赖注入相关的代码
+
+```csharp
+namespace Ordering.API;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApiServices(this IServiceCollection services)
+    {
+        return services;
+    }
+
+    public static WebApplication UseApiServices(this WebApplication app)
+    {
+        return app;
+    }
+}
+```
+
+(2). 在 Application 项目中添加依赖注入相关的代码
+
+```csharp
+namespace Ordering.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    {
+        return services;
+    }
+}
+```
+
+(3). 在 Infrastructure 项目中添加依赖注入相关的代码
+```csharp
+namespace Ordering.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services,IConfiguration configuration)
+    {
+        return services;
+    }
+}
+```
+
+最终，在 Ordering.API 项目中调用各层中添加依赖注入的代码，如下：
+
+```csharp
+builder.Services
+    .AddApiServices()
+    .AddApplicationServices()
+    .AddInfrastructureServices(builder.Configuration);
+```
+
+#### 6.6 全局命名空间引入
+
+在各层中都添加一个 `GlobalUsings.cs` 文件，用于存放全局使用的命名空间。
+
+(1). 在 Ordering.API 项目中添加全局命名空间
+
+```csharp
+global using Ordering.API;
+```
+
+(2). 在 Application 项目中添加全局命名空间
+
+```csharp
+global using Ordering.Application;
+```
+
+(3). 在 Infrastructure 项目中添加全局命名空间
+
+```csharp
+global using Ordering.Infrastructure;
+```
+
+###  7. Ordering.Domain 使用领域驱动设计构建领域层
+
+#### 7.1 战术领域驱动设计(Tactical Domain-Driven Design)
+
+**实体**
+
+- 实体是一种标识符(Id)，而非属性来识别的对象。
+- 标识符使得每个实体都具有唯一性，即使它们的其他属性完全相同。
+- 实体用于表示系统中那些具有唯一标识和生命周期的对象。
+
+**值对象**
+
+- 值对象是一种用于描述某种特征或属性的对象，但它本身并不具备身份识别的功能。
+- 值对象用于描述那些在概念层面上没有独立身份的领域特征。
+- 它们是不可变的，通常被用来封装复杂的属性。
+
+**聚合**
+
+- 聚合是由一组领域对象（实体和值对象）组成的集合，这些对象可以被视为一个整体来处理。
+- 聚合体必然包含一个名为“聚合根”的组件。
+- 为相关对象划定一个边界。在该边界范围内的操作应当确保对聚合数据所做的更改保持一致性。
+
+**聚合根**
+
+- 聚合根是聚合中的主要实体，外部对象正是通过它与聚合体进行交互的。
+- 它为聚合提供了访问接口，确保聚合的不变性得到维护，并保持数据的一致性。
+
+#### 7.2 基础类型偏执(Primitive Obsession)
+
+Primitive Obsession是一种代码坏味道现象：在这种情况下，程序中会使用诸如字符串、整数、Guid之类的原始类型来表示业务领域的概念，从而导致代码含义模糊且容易出错。
+
+如果使用 GUID 或字符串作为 orderld、customerld 或 productld 的标识符，就很容易将它们混淆在一起，因为它们的类型其实是一样的。
+
+#### 7.3 强类型 Ids 模式
+
+为领域中的每种类型的Id创建不同的标识符。这样能让代码更具表现力，同时更不容易出错。
+
+这明确了系统期望接收哪种类型的标识符，并防止用户误用了本应使用的标识符类型（例如订单编号），而使用了另一种类型的标识符。
+
+#### 7.4 贫血模型实体(Anemic Domain Model Entity)
+
+贫血模型几乎不包含任何业务逻辑，本质上就是带有 getter 与 setter 方法的数据结构。
+
+这令这类实体显得贫瘠，因为它仅仅包含了数据，而完全缺乏任何领域逻辑或相关行为。
+
+#### 7.5 充血模型实体(Rich Domain Model Entity)
+
+实体既包含了数据，也包含了相关的业务逻辑。
+
+#### 7.6 贫血模型实体与充血模型实体的对比
+
+**贫血模型实体：**
+
+- 业务逻辑分散在应用程序的各个部分中，通常存在于不同的服务模块中。
+- 实体只是简单的数据容器而已。
+- 这会导致维护难度增加，同时也难以理解业务逻辑。
+
+**充血模型实体：**
+
+- 将业务逻辑封装在各个实体内部。
+- 更贴近现实世界的业务场景。
+- 虽然设计起来可能更为复杂，但这样构建出的模型会更加易于维护，且各个部分之间的逻辑联系也会更加紧密。
+
+#### 7.7 领域事件(Domain Event)
+
+- 领域事件代表过去发生的某个事实，同一服务边界内的其他部分需要对这一变化作出响应。
+- 领域事件（Domain Event）是指在领域模型（domain model）内部发生的业务事件，它通常表示某个领域操作产生的副作用或后续影响。
+- 用于确保同一领域内各个数据集之间的一致性。
+
+#### 7.8 领域事件与集成事件的对比
+
+**领域事件：**
+
+- 在单一的领域内进行发布和消费。严格遵循微服务/领域本身的边界限制。
+- 表示在整体范围内发生了某种事情。
+
+**集成事件：**
+
+- 用于在各种上下文或微服务之间传递状态变化或事件信息。
+- 整个系统对特定领域事件的反应
+- 通过消息队列异步发送(经由消息代理，即 Message Broker)
+
+#### 7.9 定义抽象实体
+
+在 `Abstractions` 文件夹中，定义一个通用的实体接口 `IEntity<TId>`，其中 `TId` 是实体的标识符类型。
+
+```csharp
+public interface IEntity<TId> : IEntity
+{
+    public TId Id { get; set; }
+}
+
+public interface IEntity
+{
+    public DateTime? CreatedAt { get; set; }
+    public string? CreatedBy { get; set; }
+    public DateTime? ModifiedAt { get; set; }
+    public string? ModifiedBy { get; set; }
+}
+```
+
+定义一个抽象类 `Entity<TId>`，实现 `IEntity<TId>` 接口。
+
+```csharp
+public abstract class Entity<TId> : IEntity<TId>
+{
+    public TId Id { get; set; }
+    public DateTime? CreatedAt { get; set; }
+    public string? CreatedBy { get; set; }
+    public DateTime? ModifiedAt { get; set; }
+    public string? ModifiedBy { get; set; }
+}
+```
+
+#### 7.10 定义领域事件
+
+(1). 安装 NuGet 包 `MediatR`。
+
+```bash
+dotnet add package MediatR
+```
+
+(2). 定义领域事件接口 `IDomainEvent`。
+
+```csharp
+public interface IDomainEvent : INotification
+{
+    Guid EventId => Guid.NewGuid();
+
+    public DateTime OccurredOn => DateTime.Now;
+
+    public string EventType => GetType().AssemblyQualifiedName;
+}
+```
+
+#### 7.11 定义聚合根
+
+(1). 定义聚合根接口 `IAggregate<TId>`，其中 `TId` 是聚合根的标识符类型。
+
+```csharp
+public interface IAggregate<TId> : IAggregate, IEntity<TId>
+{
+    
+}
+
+public interface IAggregate : IEntity
+{
+    IReadOnlyList<IDomainEvent> DomainEvents { get; }
+
+    IDomainEvent[] ClearDomainEvents();
+}
+```
+
+(2). 定义聚合根抽象类 `Aggregate<TId>`，实现 `IAggregate<TId>` 接口。
+
+```csharp
+public abstract class Aggregate<TId> : Entity<TId>, IAggregate<TId>
+{
+    private readonly List<IDomainEvent> _domainEvents = new();
+    public IReadOnlyList<IDomainEvent> DomainEvents => 
+        _domainEvents.AsReadOnly();
+
+    public void AddDomainEvent(IDomainEvent domainEvent) => 
+        _domainEvents.Add(domainEvent);
+    
+    public IDomainEvent[] ClearDomainEvents()
+    {
+        var dequeuedEvents = _domainEvents.ToArray();
+        _domainEvents.Clear();
+        return dequeuedEvents;
+    }
+}
+```
+
+#### 7.12 定义值对象
+
+(1). 定义地址值对象。
+
+```csharp
+public record Address
+{
+    public string Name { get; }
+    public string Email { get; }
+    public string AddressLine { get; }
+    public string Country { get; }
+    public string State { get; }
+    public string Zipcode { get; }
+}
+```
+
+(2). 定义支付值对象。
+
+```csharp
+public record Payment
+{
+    public string CardName { get; }
+    public string CardNumber { get; }
+    public string Expiration { get; }
+    public string CVV { get; }
+    public int PaymentMethod { get; }
+}
+```
+
+#### 7.13 定义枚举
+
+(1). 定义订单状态枚举。
+
+```csharp
+public enum OrderStatus
+{
+    Draft = 1,
+    Pending = 2,
+    Completed = 3,
+    Cancelled = 4,
+}
+```
+
+#### 7.14 定义模型
+
+(1). 定义订单模型。
+
+它是一个聚合根，用于表示订单的状态和行为。
+
+```csharp
+public class Order : Aggregate<Guid>
+{
+    private readonly List<OrderItem> _orderItems = new();
+    public IReadOnlyList<OrderItem> OrderItems => _orderItems.AsReadOnly();
+
+    public Guid CustomerId { get; set; }
+    public string CustomerName { get; set; }
+
+    public Address ShippingAddress { get; private set; }
+    public Address BillingAddress { get; private set; }
+    public Payment Payment { get; private set; }
+    public OrderStatus Status { get; private set; } = OrderStatus.Pending;
+
+    public decimal TotalPrice
+    {
+        get => OrderItems.Sum(x => x.Price * x.Quantity);
+        private set { }
+    }
+}
+```
+
+(2). 定义订单项模型。
+
+它是一个实体，用于表示订单中的商品项。
+
+```csharp
+public class OrderItem : Entity<Guid>
+{
+    public OrderItem(Guid orderId, Guid productId, int quantity, decimal price)
+    {
+        OrderId = orderId;
+        ProductId = productId;
+        Quantity = quantity;
+        Price = price;
+    }
+
+    public Guid OrderId { get; set; }
+    public Guid ProductId { get; set; }
+    public int Quantity { get; set; }
+    public decimal Price { get; set; }
+}
+```
+
+(3). 定义客户模型。
+
+它是一个实体，用于表示客户的信息。
+
+```csharp
+public class Customer : Entity<Guid>
+{
+    public string Name { get; private set; }
+    public string Email { get; private set; }
+}
+```
+
+(4). 定义商品模型。
+
+它是一个实体，用于表示商品的信息。
+
+```csharp
+public class Product : Entity<Guid>
+{
+    public string Name { get; private set; }
+    public decimal Price { get; private set; }
+}
+```
+
+#### 7.15 使用强类型ID
+
+(1). 为业务模型中的Id定义值对象。
+
+```csharp
+public record CustomerId
+{
+    public Guid Value { get; }
+}
+
+public record OrderId
+{
+    public Guid Value { get; }
+}
+
+public record ProductId
+{
+    public Guid Value { get; }
+}
+```
+
+(2). 将订单模型中的标识符类型从原始类型替换为值对象，并将聚合根的标识符类型从 `Guid` 替换为 `OrderId`。
+
+```csharp
+public class Order : Aggregate<OrderId>
+{
+    ...
+
+    public CustomerId CustomerId { get; set; }
+    
+    ...
+}
+```
+
+#### 7.16 定义领域异常
+
+在 `Exceptions` 文件夹中定义领域异常类 `DomainException`。
+
+```csharp
+public class DomainException : Exception
+{
+    public DomainException(string message)
+    : base($"Domain Exception: \"{message}\" throws from Domain Layer.")
+    {
+        
+    }
+}
+```
+#### 7.17 将客户模型改为充血模型
+
+(1). 将客户模型实体改为充血模型。
+
+```csharp
+public class Customer : Entity<CustomerId>
+{
+    public string Name { get; private set; }
+    public string Email { get; private set; }
+
+    public static Customer Create(CustomerId id, string name, string email)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+
+        var customer = new Customer
+        {
+            Name = name,
+            Email = email,
+        };
+
+        return customer;
+    }
+}
+```
+
+(2). 将客户Id值对象改为充血模型。
+
+```csharp
+public record CustomerId
+{
+    public Guid Value { get; }
+
+    private CustomerId(Guid value) => Value = value;
+
+    public static CustomerId Of(Guid value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        if (Guid.Empty == value)
+        {
+            throw new DomainException("CustomerId cannot be empty.");
+        }
+
+        return new CustomerId(value);
+    }
+}
+```
+
+#### 7.18 定义领域事件
+
+在 `Events` 文件夹中定义领域事件类 `OrderCreatedEvent`。
+
+```csharp
+public record OrderCreatedEvent(Order Order) : IDomainEvent;
+```
+
+#### 7.19 在订单聚合根中触发领域事件
+
+在订单聚合根中调用领域事件 `OrderCreatedEvent`、`OrderUpdatedEvent`。
+
+```csharp
+public class Order : Aggregate<OrderId>
+{
+    ...
+
+    public static Order Create(OrderId id, CustomerId customerId, OrderName orderName, Address shippingAddress, Address billingAddress, Payment payment)
+    {
+        var order = new Order
+        {
+            Id = id,
+            CustomerId = customerId,
+            OrderName = orderName,
+            ShippingAddress = shippingAddress,
+            BillingAddress = billingAddress,
+            Payment = payment,
+            Status = OrderStatus.Pending,
+        };
+
+        order.AddDomainEvent(new OrderCreatedEvent(order));
+
+        return order;
+    }
+
+    public void Update(OrderName orderName, Address shippingAddress, Address billingAddress, Payment payment, OrderStatus status)
+    {
+        OrderName = orderName;
+        ShippingAddress = shippingAddress;
+        BillingAddress = billingAddress;
+        Payment = payment;
+        Status = status;
+
+        AddDomainEvent(new OrderUpdatedEvent(this));
+    }
+
+    public void Add(ProductId productId, int quantity, decimal price)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(quantity);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(price);
+
+        var orderItem = new OrderItem(Id, productId, quantity, price);
+        _orderItems.Add(orderItem);
+    }
+
+    public void Remove(ProductId productId)
+    {
+        var orderItem = _orderItems.FirstOrDefault(x => x.ProductId == productId);
+        if (orderItem is not null)
+        {
+            _orderItems.Remove(orderItem);
+        }
+    }
+}
+```
+
+### 8. Ordering.Infrastructure 使用 EF Core 代码优先开发方式构建基础设施层
+
+**迁移**
+
+迁移是一种逐步更新数据库架构的方法，确保数据库架构始终与应用程序的数据模型保持同步。
+
+当模型发生变更时，生成相应的迁移脚本，用于描述数据库中需要进行的更新操作。在 Entity Framework Core 会将当前模型与之间模型的快照进行比较，找出其差异部分，并生成相应的迁移源文件。
+
+**代码优先模式(Code-First Approach)**
+
+代码优先指的是先定义数据模型，然后根据模型生成数据库架构。
+
+#### 8.1 安装 EF Core 相关 NuGet 包
+
+在 `Ordering.Infrastructure` 项目中安装 EF Core 相关 NuGet 包。
+
+(1). 在 Ordering.API 中安装 `Microsoft.EntityFrameworkCore.Design` 包。
+
+```bash
+dotnet add package Microsoft.EntityFrameworkCore.Design
+```
+
+(2). 在 Ordering.Infrastructure 中安装 `Microsoft.EntityFrameworkCore.SqlServer` 包。
+
+```bash
+dotnet add package Microsoft.EntityFrameworkCore.SqlServer
+```
+
+#### 8.2 定义数据库上下文
+
+在 `Data` 文件夹中定义数据库上下文 `ApplicationDbContext`。并应用
+ `ApplyConfigurationsFromAssembly` 方法，将 `Ordering.Infrastructure.Data` 程序集
+ 中的所有配置类应用到模型构建器中。
+
+```csharp
+namespace Ordering.Infrastructure.Data;
+
+public class ApplicationDbContext : DbContext
+{
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+    {
+        
+    }
+    
+    public DbSet<Customer> Customers { get; set; }
+    
+    public DbSet<Product> Products { get; set; }
+    
+    public DbSet<Order> Orders { get; set; }
+    
+    public DbSet<OrderItem> OrderItems { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        base.OnModelCreating(modelBuilder);
+    }
+}
+```
+
+#### 8.3 定义数据库上下文配置类
+
+在 `Configurations` 文件夹中定义数据库上下文配置类 `OrderConfiguration`。并添加复杂类型的配置。
+
+```csharp
+namespace Ordering.Infrastructure.Data.Configurations;
+
+public class OrderConfiguration : IEntityTypeConfiguration<Order>
+{
+    public void Configure(EntityTypeBuilder<Order> builder)
+    {
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.Id).HasConversion(
+            orderId => orderId.Value,
+            orderId => OrderId.Of(orderId));
+
+        builder.HasOne<Customer>()
+            .WithMany()
+            .HasForeignKey(x => x.CustomerId)
+            .IsRequired();
+
+        builder.HasMany(x => x.OrderItems)
+            .WithOne()
+            .HasForeignKey(x => x.OrderId);
+
+        builder.ComplexProperty(
+            x => x.OrderName,
+            nameBuilder =>
+            {
+                nameBuilder.Property(x => x.Value)
+                    .HasColumnName(nameof(Order.OrderName))
+                    .HasMaxLength(100)
+                    .IsRequired();
+            });
+
+        builder.ComplexProperty(
+            x => x.ShippingAddress,
+            addressBuilder =>
+            {
+                addressBuilder.Property(x => x.Name)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                addressBuilder.Property(x => x.Email)
+                    .HasMaxLength(50);
+
+                addressBuilder.Property(x => x.AddressLine)
+                    .HasMaxLength(180)
+                    .IsRequired();
+
+                addressBuilder.Property(x => x.Country)
+                    .HasMaxLength(50);
+
+                addressBuilder.Property(x => x.State)
+                    .HasMaxLength(50);
+
+                addressBuilder.Property(x => x.Zipcode)
+                    .HasMaxLength(5)
+                    .IsRequired();
+            });
+
+        builder.ComplexProperty(
+            x => x.BillingAddress,
+            addressBuilder =>
+            {
+                addressBuilder.Property(x => x.Name)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                addressBuilder.Property(x => x.Email)
+                    .HasMaxLength(50);
+
+                addressBuilder.Property(x => x.AddressLine)
+                    .HasMaxLength(180)
+                    .IsRequired();
+
+                addressBuilder.Property(x => x.Country)
+                    .HasMaxLength(50);
+
+                addressBuilder.Property(x => x.State)
+                    .HasMaxLength(50);
+
+                addressBuilder.Property(x => x.Zipcode)
+                    .HasMaxLength(5)
+                    .IsRequired();
+            });
+
+        builder.ComplexProperty(
+            x => x.Payment,
+            paymentBuilder =>
+            {
+                paymentBuilder.Property(x => x.CardName)
+                    .HasMaxLength(50);
+
+                paymentBuilder.Property(x => x.CardNumber)
+                    .HasMaxLength(24)
+                    .IsRequired();
+
+                paymentBuilder.Property(x => x.Expiration)
+                    .HasMaxLength(10);
+
+                paymentBuilder.Property(x => x.CVV)
+                    .HasMaxLength(3);
+
+                paymentBuilder.Property(x => x.PaymentMethod);
+            });
+
+        builder.Property(x => x.Status)
+            .HasDefaultValue(OrderStatus.Draft)
+            .HasConversion(
+                orderStatus => orderStatus.ToString(),
+                orderStatus => (OrderStatus)Enum.Parse(typeof(OrderStatus), orderStatus));
+
+        builder.Property(x => x.TotalPrice);
+    }
+}
+```
+
+#### 8.4 注入数据库上下文
+
+```csharp
+namespace Ordering.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services,IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("Database");
+
+        services.AddDbContext<ApplicationDbContext>(options=>
+            options.UseSqlServer(connectionString));
+        return services;
+    }
+}
+```
+
+#### 8.5 生成迁移文件
+
+(1). 在 `Ordering.Infrastructure` 项目中生成迁移文件，并将文件目录设置为 `Data\Migrations` 中。
+
+```bash
+dotnet ef migrations add InitialCreate --project .\Ordering.Infrastructure --startup-project .\Ordering.API\ --output-dir Data\Migrations
+```
+
+或简写命令
+
+```bash
+dotnet ef migrations add InitialCreate -p Ordering.Infrastructure -s Ordering.API -c ApplicationDbContext -o Data/Migrations
+```
+
+(2). 在 `Ordering.Infrastructure` 项目中应用迁移文件。
+
+```bash
+dotnet ef database update --project .\Ordering.Infrastructure --startup-project .\Ordering.API\
+```
+
+或简写命令
+
+```bash
+dotnet ef database update -p Ordering.Infrastructure -s Ordering.API -c ApplicationDbContext
+```
+
+#### 8.6 自动迁移数据库
+
+(1). 在 `Ordering.Infrastructure` 项目中添加扩展方法，用于自动迁移数据库。
+
+```csharp
+namespace Ordering.Infrastructure.Data.Extensions;
+
+public static class DatabaseExtensions
+{
+    public static async Task InitializeDatabaseAsync(this WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        await context.Database.MigrateAsync();
+    }
+}
+```
+
+#### 8.7 填充种子数据
+
+(1). 在 `Ordering.Infrastructure` 项目中添加种子数据类。
+
+```csharp
+namespace Ordering.Infrastructure.Data.Extensions;
+
+internal static class InitialData
+{
+    public static IEnumerable<Customer> Customers =>
+        new List<Customer>
+        {
+            Customer.Create(CustomerId.Of(new Guid("58c49479-ec65-4de2-86e7-033c546291aa")), "mehmet",
+                "mehmet@gmail.com"),
+            Customer.Create(CustomerId.Of(new Guid("189dc8dc-990f-48e0-a37b-e6f2b60b9d7d")), "john", "john@gmail.com")
+        };
+
+    public static IEnumerable<Product> Products =>
+        new List<Product>
+        {
+            Product.Create(ProductId.Of(new Guid("5334c996-8457-4cf0-815c-ed2b77c4ff61")), "IPhone X", 500),
+            Product.Create(ProductId.Of(new Guid("c67d6323-e8b1-4bdf-9a75-b0d0d2e7e914")), "Samsung 10", 400),
+            Product.Create(ProductId.Of(new Guid("4f136e9f-ff8c-4c1f-9a33-d12f689bdab8")), "Huawei Plus", 650),
+            Product.Create(ProductId.Of(new Guid("6ec1297b-ec0a-4aa1-be25-6726e3b51a27")), "Xiaomi Mi", 450)
+        };
+
+    public static IEnumerable<Order> OrdersWithItems
+    {
+        get
+        {
+            var address1 = Address.Of("mehmet", "mehmet@gmail.com", "Bahcelievler No:4", "Turkey", "Istanbul", "38050");
+            var address2 = Address.Of("john", "john@gmail.com", "Broadway No:1", "England", "Nottingham", "08050");
+
+            var payment1 = Payment.Of("mehmet", "5555555555554444", "12/28", "355", 1);
+            var payment2 = Payment.Of("john", "8885555555554444", "06/30", "222", 2);
+
+            var order1 = Order.Create(
+                OrderId.Of(Guid.NewGuid()),
+                CustomerId.Of(new Guid("58c49479-ec65-4de2-86e7-033c546291aa")),
+                OrderName.Of("ORD_1"),
+                shippingAddress: address1,
+                billingAddress: address1,
+                payment1);
+            order1.Add(ProductId.Of(new Guid("5334c996-8457-4cf0-815c-ed2b77c4ff61")), 2, 500);
+            order1.Add(ProductId.Of(new Guid("c67d6323-e8b1-4bdf-9a75-b0d0d2e7e914")), 1, 400);
+
+            var order2 = Order.Create(
+                OrderId.Of(Guid.NewGuid()),
+                CustomerId.Of(new Guid("189dc8dc-990f-48e0-a37b-e6f2b60b9d7d")),
+                OrderName.Of("ORD_2"),
+                shippingAddress: address2,
+                billingAddress: address2,
+                payment2);
+            order2.Add(ProductId.Of(new Guid("4f136e9f-ff8c-4c1f-9a33-d12f689bdab8")), 1, 650);
+            order2.Add(ProductId.Of(new Guid("6ec1297b-ec0a-4aa1-be25-6726e3b51a27")), 2, 450);
+
+            return new List<Order> { order1, order2 };
+        }
+    }
+}
+```
+
+(2). 在 `Ordering.Infrastructure` 项目中添加扩展方法，用于填充种子数据。
+
+```csharp
+namespace Ordering.Infrastructure.Data.Extensions;
+
+public static class DatabaseExtensions
+{
+    public static async Task InitializeDatabaseAsync(this WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        await context.Database.MigrateAsync();
+
+        await SeedDatabaseAsync(context);
+    }
+
+    private static async Task SeedDatabaseAsync(ApplicationDbContext context)
+    {
+        await SeedCustomerAsync(context);
+        await SeedProductAsync(context);
+        await SeedOrdersWithItemsAsync(context);
+    }
+
+    private static async Task SeedCustomerAsync(ApplicationDbContext context)
+    {
+        if (!await context.Customers.AnyAsync())
+        {
+            await context.Customers.AddRangeAsync(InitialData.Customers);
+            await context.SaveChangesAsync();
+        }
+    }
+    
+    private static async Task SeedProductAsync(ApplicationDbContext context)
+    {
+        if (!await context.Customers.AnyAsync())
+        {
+            await context.Products.AddRangeAsync(InitialData.Products);
+            await context.SaveChangesAsync();
+        }
+    }
+    
+    private static async Task SeedOrdersWithItemsAsync(ApplicationDbContext context)
+    {
+        if (!await context.Customers.AnyAsync())
+        {
+            await context.Orders.AddRangeAsync(InitialData.OrdersWithItems);
+            await context.SaveChangesAsync();
+        }
+    }   
+}
+```
+
+#### 8.8 EF Core 拦截器实现审计实体
+
+在 Entity Framework Core 中，拦截器是一种用于在执行数据库操作之前或之后执行自定义逻辑的机制。
+
+- `ISaveChangesInterceptor`：在调用 `SaveChanges` 或 `SaveChangeAsync` 方法时拦截，并执行自定义逻辑。
+- `IQueryableInterceptor`：在查询数据库时拦截。
+
+在保存时拦截的一个使用场景是审计(Auditing)，可用于创建独立的审计记录，对于维护实体的变更历史非常有用。
+
+(1). 实现拦截器
+
+在 `Interceptors` 文件夹中 创建 `AuditSaveChangesInterceptor` 类，实现 `ISaveChangesInterceptor` 接口。
+
+审计拦截器的主要功能是在保存更改时，自动更新实体的审计字段，如创建时间、创建人、更新时间、更新人等。
+
+```csharp
+namespace Ordering.Infrastructure.Data.Interceptors;
+
+public class AuditableEntityInterceptor : SaveChangesInterceptor
+{
+    public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
+    {
+        UpdateEntities(eventData.Context);
+        return base.SavingChanges(eventData, result);
+    }
+
+    public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = new CancellationToken())
+    {
+        UpdateEntities(eventData.Context);
+        return base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
+    public void UpdateEntities(DbContext? dbContext)
+    {
+        if (dbContext is null)
+            return;
+
+        foreach (var entry in dbContext.ChangeTracker.Entries<IEntity>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.CreatedBy = "mehmet";
+                entry.Entity.CreatedAt = DateTime.UtcNow;
+            }
+
+            if (entry.State == EntityState.Added || entry.State == EntityState.Modified || entry.HasChangedOwnedEntities())
+            {
+                entry.Entity.CreatedBy = "mehmet";
+                entry.Entity.CreatedAt = DateTime.UtcNow;
+            }
+        }
+    }
+}
+
+public static class Extensions
+{
+    public static bool HasChangedOwnedEntities(this EntityEntry entry)
+        => entry.References.Any(x =>
+            x.TargetEntry != null && 
+            x.TargetEntry.Metadata.IsOwned() && 
+            (x.TargetEntry.State == EntityState.Added ||
+            x.TargetEntry.State == EntityState.Modified));
+}
+```
+
+(2). 注册拦截器
+
+使用 `AddInterceptors` 方法注册拦截器。
+
+```csharp
+namespace Ordering.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services,IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("Database");
+
+        services.AddDbContext<ApplicationDbContext>(options =>
+        {
+            options.AddInterceptors(new AuditableEntityInterceptor());
+            options.UseSqlServer(connectionString);
+        });
+        return services;
+    }
+}
+```
+
+#### 8.9 EF Core 保存拦截器处理领域事件
+
+在 Entity Framework Core 中，保存拦截器还可以用于处理领域事件。
+
+**领域事件(Domain Events)**表示过去发生的一些事件，同一服务边界内属于同一领域的其他组件都需要对这些事件做出相应的反应。
+
+领域事件是指在领域模型中发生的业务事件，它通常表示某个领域操作产生的副作用。确保同一领域内各种数据的一致性。
+
+(1). 实现派发领域事件拦截器
+
+```csharp
+public class DispatchDomainEventsInterceptor(IMediator mediator) : SaveChangesInterceptor
+{
+    public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
+    {
+        DispatchDomainEvents(eventData.Context).GetAwaiter().GetResult();
+        return base.SavingChanges(eventData, result);
+    }
+
+    public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = new CancellationToken())
+    {
+        await DispatchDomainEvents(eventData.Context);
+        return await base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
+    private async Task DispatchDomainEvents(DbContext? context)
+    {
+        if (context is null)
+            return;
+
+        var aggregates = context.ChangeTracker
+            .Entries<IAggregate>()
+            .Where(x => x.Entity.DomainEvents.Any())
+            .Select(x => x.Entity);
+
+        var domainEvents = aggregates
+            .SelectMany(x => x.DomainEvents)
+            .ToList();
+
+        foreach (var aggregate in aggregates)
+            aggregate.ClearDomainEvents();
+
+        foreach (var domainEvent in domainEvents)
+            await mediator.Publish(domainEvent);
+    }
+}
+```
+
+(2). 注册多个拦截器
+
+可以将多个拦截器实现注册到 DI 容器中，当调用 `AddInterceptors` 方法时，从容器中获取多个拦截器实例。
+
+```csharp
+namespace Ordering.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("Database");
+
+        services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
+        services.AddScoped<ISaveChangesInterceptor, DispatchDomainEventsInterceptor>();
+
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
+        {
+            options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
+            options.UseSqlServer(connectionString);
+        });
+        return services;
+    }
+}
+```
+
+### 9. Ordering.Application 使用 CQRS 与 MediatR 构建应用层
+
+- 应用 DDD、CQRS 和 整洁架构模式。
+- 使用 CQRS 处理订单的CURD功能。
+- 使用 MediatR 通过中介者模式来实现命令处理。
+- 使用 MediatR 的 INotificationHandler 来开发领域事件处理器。
+- 使用 CQRS 和 MediaR 开发订单查询系统。
+
+#### 9.1 应用层的基本使用模式
+
+- CQRS 模式
+- 事件溯源(Event Sourcing)模式
+- 结合事件溯源的CQRS架构
+- 最终一致性原则
+
+**CQRS 命令型查询与职责分离架构**
+
+为了避免复杂的查询以及低效的连接操作，通过使用不同的数据库来分别处理读写操作。
+
+为了处理大规模微服务架构需要处理海量数据所带来的挑战，以及各种服务使用同一数据库可能会导致的性能瓶颈。
+
+将同时采用CQRS和事件驱动模式来提升应用程序的性能。CQRS通过分离数据的读写操作，从而最大限度地提升查询性能及系统的可扩展性。
+
+**CQRS 读写分离**
+
+如果我们的应用程序主要用于数据读取，而写入操作较少，那么就可以被归类为以数据读取为主的应用程序。
+
+为了提高查询性能，读操作会从高度反规划处理(highly denormalized)的数据库中读取数据，从而避免进行耗时且重复的表连接操作以及避免锁表现象的发生。
+
+“职责分离” 原则：应将读取数据库与写入数据库分开，分别使用两个不同的数据库。
+
+读取数据库：使用 NoSQL 数据库
+写入数据库：使用 关系型 数据库
+
+**CQRS 读写数据库的同步机制**
+
+- 确保数据库的读写操作保持同步
+- 发布事件，该事件会从数据库中读取相关数据，并据此更新相应的读取表。
+- 通过消息代理实现异步通信下的同步处理。
+- 读数据库会和写数据库同步数据。
+- 由于采用了 发布/订阅 模式与消息代理进行异步通信，因此某些操作在处理过程中会出现延迟。
+- 但最终数据库会保持一致，这就是 最终一致性(Eventual Consistency Principle)。
+
+**事件溯源模式(Event Sourcing Pattern)**
+
+在大型架构中，频繁的数据库更新操作会降低数据库的性能，从而限制其可扩展性。
+
+事件溯源模式允许将所有会影响数据库的操作都存储到事件存储数据库中，并将这些操作视为事件来处理。
+
+与将数据的最新状态保存到数据库中的方式不同，事件溯源模式允许将所有事件按顺序保存到数据库中。
+
+事件数据库并不是将数据覆盖到表中，而是会在数据发生任何变化时都创建一条新记录，从而形成一系列按时间顺序排列的过去事件记录。
+
+事件列表允许用户在指定时间点重新播放这些事件，通过重新播放相关事件，它能够重新生成数据的最新状态。
+
+
+**最终一致性原则(Eventual Consistency Principle)**
+
+采取事件溯源模式的CQRS架构能够实现最终一致性。
+
+最终一致性这种机制更适合注重系统的高可用，而非强一致性的系统。
+
+一致性级别(Consistency Level) 共有两种；
+- 严格一致性：当保存数据时，这些数据立即对客户端产生影响，并且所有客户端都能立即看到这些数据的变化。
+- 最终一致性：当写入数据时，客户端需要在一定时间后才能读取到这些数据。
+
+#### 9.2 定义数据库上下文接口
+
+在 `Ordering.Application` 项目中定义 `IApplicationDbContext` 接口，实现依赖倒置原则，将数据库上下文的依赖从应用层解耦出来。
+
+```csharp
+namespace Ordering.Application.Data;
+
+public interface IApplicationDbContext
+{
+    DbSet<Customer> Customers { get; }
+    DbSet<Product> Products { get; }
+    DbSet<Order> Orders { get; }
+    DbSet<OrderItem> OrderItems { get; }
+    
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken);
+}
+```
+
+在 `Ordering.Infrastructure` 项目中实现 `IApplicationDbContext` 接口。
+
+```csharp
+public class ApplicationDbContext : DbContext, IApplicationDbContext
+{
+    ...
+}
+```
+
+#### 9.3 实现 CQRS 命令
+
+定义 `CreateOrderCommand` 命令，用于创建订单。
+
+```csharp
+namespace Ordering.Application.Orders.Command.CreateOrder;
+
+public record CreateOrderCommand(OrderDto Order) : ICommand<CreateOrderResult>;
+
+public record CreateOrderResult(Guid Id);
+
+public class CreateOrderCommandValidator : AbstractValidator<CreateOrderCommand>
+{
+    public CreateOrderCommandValidator()
+    {
+        RuleFor(x => x.Order.OrderName)
+            .NotEmpty()
+            .WithMessage("OrderName is required.");
+
+        RuleFor(x => x.Order.CustomerId)
+            .NotNull()
+            .WithMessage("CustomerId is required.");
+
+        RuleFor(x => x.Order.OrderItems)
+            .NotEmpty()
+            .WithMessage("OrderItems are required.");
+    }
+}
+```
+
+实现 `CreateOrderCommandHandler` 命令处理程序，用于处理 `CreateOrderCommand` 命令。
+
+```csharp
+namespace Ordering.Application.Orders.Command.CreateOrder;
+
+public class CreateOrderCommandHandler(IApplicationDbContext dbContext)
+    : ICommandHandler<CreateOrderCommand, CreateOrderResult>
+{
+    public async Task<CreateOrderResult> Handle(CreateOrderCommand command, CancellationToken cancellationToken)
+    {
+        var order = CreateOrder(command.Order);
+
+        dbContext.Orders.Add(order);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new CreateOrderResult(order.Id.Value);
+    }
+
+    private Order CreateOrder(OrderDto orderDto)
+    {
+        var shippingAddress = Address.Of(
+            orderDto.ShippingAddress.Name,
+            orderDto.ShippingAddress.Email,
+            orderDto.ShippingAddress.AddressLine,
+            orderDto.ShippingAddress.Country,
+            orderDto.ShippingAddress.State,
+            orderDto.ShippingAddress.ZipCode);
+
+        var billingAddress = Address.Of(
+            orderDto.BillingAddress.Name,
+            orderDto.BillingAddress.Email,
+            orderDto.BillingAddress.AddressLine,
+            orderDto.BillingAddress.Country,
+            orderDto.BillingAddress.State,
+            orderDto.BillingAddress.ZipCode);
+
+        var order = Order.Create(
+            id: OrderId.Of(Guid.NewGuid()),
+            customerId: CustomerId.Of(orderDto.CustomerId),
+            orderName: OrderName.Of(orderDto.OrderName),
+            shippingAddress: shippingAddress,
+            billingAddress: billingAddress,
+            payment: Payment.Of(
+                orderDto.Payment.CardName,
+                orderDto.Payment.CardNumber,
+                orderDto.Payment.Expiration,
+                orderDto.Payment.CVV,
+                orderDto.Payment.PaymentMethod)
+        );
+
+        foreach (var orderItemDto in orderDto.OrderItems)
+        {
+            order.Add(ProductId.Of(orderItemDto.ProductId), orderItemDto.Quantity, orderItemDto.Price);
+        }
+
+        return order;
+    }
+}
+```
+
+#### 9.4 实现 CQRS 查询
+
+(1). 在 BuildingBlocks 项目中添加 `PaginationRequest` 分页请求类与 `PaginationResult` 分页结果类。
+
+```csharp
+namespace BuildingBlocks.Pagination;
+
+public record PaginationRequest(int PageIndex = 0, int PageSize = 10);
+
+public class PaginationResult<TEntity>(
+    int pageIndex,
+    int pageSize,
+    long count,
+    IEnumerable<TEntity> data)
+{
+    public int PageIndex { get; } = pageIndex;
+    public int PageSize { get; } = pageSize;
+    public long Count { get; } = count;
+    public IEnumerable<TEntity> Data { get; } = data;
+}
+```
+
+(2). 定义 `GetOrdersQuery` 查询，用于获取订单列表，并接收分页请求参数，以及返回分页结果。
+
+```csharp
+public record GetOrdersQuery(PaginationRequest PaginationRequest) : IQuery<GetOrdersResult>;
+
+public record GetOrdersResult(PaginationResult<OrderDto> Orders);
+```
+
+(3). 实现 `GetOrdersQueryHandler` 查询处理程序，用于处理 `GetOrdersQuery` 查询。
+
+EF Core 支持使用 LINQ 方法进行分页查询，通过 `Skip` 和 `Take` 方法实现分页。
+
+- `Skip` 跳过多少条数据。
+- `Take` 获取多少条数据。
+
+```csharp
+public class GetOrdersQueryHandler(IApplicationDbContext dbContext)
+    : IQueryHandler<GetOrdersQuery, GetOrdersResult>
+{
+    public async Task<GetOrdersResult> Handle(GetOrdersQuery query, CancellationToken cancellationToken)
+    {
+        var pageIndex = query.PaginationRequest.PageIndex;
+        var pageSize = query.PaginationRequest.PageSize;
+
+        var totalCount = await dbContext.Orders.LongCountAsync(cancellationToken);
+
+        var orders = await dbContext.Orders
+            .Include(x => x.OrderItems)
+            .OrderBy(x => x.OrderName)
+            .Skip(pageIndex * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new GetOrdersResult(new PaginationResult<OrderDto>(
+            pageIndex,
+            pageSize,
+            totalCount,
+            orders.ToOrderDtos()
+        ));
+    }
+}
+```
+
+在 `Ordering.Application` 项目中定义 `DependencyInjection` 类，用于注册应用层服务。
+
+```csharp
+namespace Ordering.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    {
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
+            cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+            cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+        });
+        return services;
+    }
+}
+```
+
+### 10. Ordering.API 使用 Carter 与 REPR 模式构建API层
+
+#### 10.1 REPR 设计模式
+
+- 开发 API 接口，实现简单的 请求/响应 处理流程。
+- `REPR` 表示 `Request-Response-Representational`，即 请求/响应/表示 模式。它简化了 `RESTful API` 的设计，将请求、响应和表示层分离，使开发人员能够更专注于业务逻辑的实现。
+- `Request` 表示接口所需要的数据结构。
+- `Endpoint` 即接口在接收请求时所执行的逻辑功能。
+- `Response` 表示接口返回的数据结构。
+ 
+#### 10.1 微服务编排的模式与原则
+
+**展示层接口模式：**
+
+- `Minimal API` 设计
+- `REPR` 设计模式
+
+**执行流程**
+
+`Domain` -> `Infrastructure` -> `Application` -> `Presentation`
+
+#### 10.2 定义接口
+
+在 `Ordering.API` 项目中添加 `Endpoints` 文件夹，用于存放 `Minimal API` 接口。
+
+```csharp
+namespace Ordering.API.Endpoints;
+
+public record CreateOrderRequest(OrderDto Order);
+
+public record CreateOrderResponse(Guid Id);
+
+public class CreateOrder : ICarterModule
+{
+    public void AddRoutes(IEndpointRouteBuilder app)
+    {
+        app
+            .MapPost("/orders", async (CreateOrderRequest request, ISender sender) =>
+            {
+                var command = request.Adapt<CreateOrderCommand>();
+
+                var result = await sender.Send(command);
+
+                var response = result.Adapt<CreateOrderResponse>();
+
+                return Results.Created($"/orders/{response.Id}", response);
+            })
+            .WithName("CreateOrder")
+            .WithDescription("Creates Order")
+            .WithSummary("Create Order")
+            .Produces<CreateOrderResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+    }
+}
+```
+
+#### 10.3 添加自定义异常处理
+
+在 `Ordering.API` 项目中的 `DependencyInjection` 类中的 `AddApiServices` 方法中添加 `AddExceptionHandler` 方法，用于添加自定义异常处理。
+
+```csharp
+public static IServiceCollection AddApiServices(this IServiceCollection services)
+{
+    ...
+    services.AddExceptionHandler<CustomerExceptionHandler>();
+    ...
+}
+```
+
+然后在 `UseApiServices` 方法中添加 `UseExceptionHandler` 中间件，用于处理自定义异常。
+
+```csharp
+public static WebApplication UseApiServices(this WebApplication app)
+{
+    ...
+    app.UseExceptionHandler(options => { });
+    ...
+}
+```
+
+#### 10.4 添加健康检查
+
+(1). 安装 `AspNetCore.HealthChecks.SqlServer` 包。
+
+```bash
+dotnet add package AspNetCore.HealthChecks.SqlServer
+dotnet add package AspNetCpre.HealthChecks.UI.Client
+```
+
+(2). 添加健康检查服务
+
+在 `Ordering.API` 项目中的 `DependencyInjection` 类中的 `AddApiServices` 方法中添加 `AddHealthChecks` 方法，用于添加健康检查。
+
+```csharp
+    public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        ...
+        services.AddHealthChecks()
+            .AddSqlServer(configuration.GetConnectionString("Database"));
+        ...
+    }
+```
+
+然后在 `UseApiServices` 方法中添加 `UseHealthChecks` 中间件，用于处理健康检查。
+
+```csharp
+public static WebApplication UseApiServices(this WebApplication app)
+{
+    ...
+    app.UseHealthChecks("/health", new HealthCheckOptions
+    {
+        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+    });
+    ...
+}
+```
+
+### 11. Docker Compose 配置
+
+#### 11.1 更改 Docker Compose 文件
+
+(1). 在 `docker-compose.yml` 文件中添加服务。
+
+```yaml
+services:    
+  order.db:
+    image: mcr.microsoft.com/mssql/server
+```
+
+(2). 在 `docker-compose.override.yml` 文件中添加服务。
+
+```yaml
+services:        
+  order.db:
+    container_name: order.db
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Password@123
+    restart: always
+    ports:
+      - "1433:1433"
 ```
