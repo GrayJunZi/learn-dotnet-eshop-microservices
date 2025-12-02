@@ -11,6 +11,9 @@ services:
   order.db:
     image: mcr.microsoft.com/mssql/server
     
+  message.broker:
+    image: rabbitmq:management
+    
   catalog.api:
     image: ${DOCKER_REGISTRY-}catalog.api
     build:
@@ -28,6 +31,12 @@ services:
     build:
       context: .
       dockerfile: Services/Discount/Discount.Grpc/Dockerfile
+
+  ordering.api:
+    image: ${DOCKER_REGISTRY-}ordering.api
+    build:
+      context: .
+      dockerfile: Services/Ordering/Ordering.API/Dockerfile
 
 volumes:
   postgres_catalog:

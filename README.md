@@ -4136,3 +4136,694 @@ services:
     ports:
       - "1433:1433"
 ```
+
+## 十三、基于 RabbitMQ 与 MassTransit 的微服务异步通信
+
+- 使用 RabbitMQ 消息代理服务实现异步微服务间通信
+- 使用 RabbitMQ 的 发布/订阅 主题交换机(Topic Exchange)模型通信
+- 使用 MassTransit 作为对 RabbitMQ 消息代理系统的抽象层
+
+### 1. 微服务异步通信机制
+
+- 通过使用 AMQP (Advanced Message Queuing Protocol) 协议，客户端可以通过 Kafka、RabbitMQ 等消息代理系统来发送消息。
+- 消息生产者不会等待回复，由消息的订阅者异步接收，因此不存在任何一方需要等待回复的情况。
+- 消息代理(Message Brokers)负责处理生产者发送的消息。如果当消费者处于不可用状态，那么代理程序可能会被设置成持续重试，直到数据成功送达为止。
+
+#### 1.1 异步通信的优势
+
+**可扩展性**
+
+通过异步通信机制，我们可以更轻松地解决扩展性问题，同时能够独立地对生产者、消费者以及消息中间件系统进行扩展。根据传入消息的数量来动态调整事件总线系统的处理能力。Kubernetes的KEDA自动扩展功能也能帮助实现类似的扩展目标。 
+
+**事件驱动型微服务**
+
+通过异步通信，我们可以构建基于事件驱动的架构。
+
+**重试机制**
+
+- 当消息发送失败时，消息代理会自动重试发送消息，直到消息被成功处理或达到最大重试次数。
+- 这确保了消息的可靠传递，即使在临时的网络故障或服务中断情况下也能保持消息的顺序性。
+
+#### 1.2 异步通信的挑战
+
+**单点故障风险(Single Point of Failure)**
+
+- 消息代理(Message Brokers)是异步通信的关键组件，一旦消息代理发生故障，就会导致整个系统的中断。
+- 为了避免单点故障风险，我们可以部署多个消息代理实例，使用负载均衡器来分发消息流量。
+- 同时，我们也可以使用消息代理的高可用性机制，如主从复制或镜像队列，来确保消息代理的高可用性。
+
+**调试(Debugging)**
+
+异步通信带来的问题很难调试，因为很难追踪单个操作在各个服务之间的传递过程。同时，调试事件的处理流程及其携带的数据也需要耗费大量时间，而且这两项工作很难同时进行。
+
+#### 1.3 基于 发布/订阅 模式的消息扩散与过滤机制
+
+- `Fan-out` 是一种消息传递模式，即消息被同时并行地发送到多个目的地（也就是广播模式）。
+- `Topic` 模式可以用来实现 发布者/订阅者模式，消息会立即被转发给该主题的所有订阅者。
+- 每项服务均可独立运行并进行扩展，其运作方式完全解耦且属于异步处理。 
+- 发布者与订阅者无需知道究竟是谁在发布或接收这些被广播的信息。 
+- 向多个接收者传递相同的信息，可以使用 `Fanout` 或 `Publish/Subscribe` 消息传递模式。
+
+#### 1.4 发布/订阅 消息模式
+
+- 发布/订阅消息是一种异步的服务对服务通信方式。
+- 任何发布到某个主题上的消息都会立即被该主题的所有订阅者收到。 
+- 启用事件驱动架构，并解耦应用程序，从而提升性能、可靠性和可扩展性。
+- 应用程序被分解为更小、更独立的模块，这些模块更易于开发、部署和维护。 
+- 发布/订阅消息传递机制能为这些分布式应用提供即时的事件通知功能。 
+
+### 2. 什么是 RabbitMQ？
+
+- RabbitMQ 是一种实现高级消息队列协议(AMQP)的消息代理软件。 
+- 它允许应用程序通过队列发送和接收消息来实现相互通信。
+- RabbitMQ是一种消息队列系统，它能将从任意来源接收到的消息传输到另一个目标来源。 
+- 类似的解决方案还包括 Apache Kafka、Msmq、Microsoft Azure Service Bus、Kestrel 以及 ActiveMQ。 
+- RabbitMQ的主要组成部分包括：生产者(Producer)、队列(Queue)、消费者(Consumer)、消息(Message)、交换机(Exchange)、绑定关系(Binding)以及FIFO机制。 
+
+#### 2.1 RabbitMQ 队列属性(Queue Properties)
+
+- Queue Name - 定义队列的名称。
+- Durable - 队列的生命周期，如果我们需要数据持久化，就必须将此属性设置为 `true`。
+- Exclusive - 表示该队列是否会被其他连接一起使用。
+- AutoDelete - 消费者接收到消息后是否自动删除该数据。
+
+#### 2.2 RabbitMQ 交换机类型(Exchange Types)
+
+- RabbitMQ提供了四种交换机类型：Direct(直接交换机)、Fanout(扇形交换机)、主题交换机(Topic Exchange)、头部交换机(Headers Exchange)。
+- Direct Exhange(直接交换机)，通过直接向队列中发送消息，实现点对点的通信。
+- Topic Exchange(主题交换机)，消息会根据主题转发到符合条件的队列中。
+- Fanout Exchange(扇形交换机)，消息会被广播到所有绑定的队列中。
+- Headers Exchange(头部交换机)，消息会根据头部信息进行路由。
+
+### 3. 微服务 Basket 应用场景
+
+**Basket异步操作：**
+
+将购物车结算事件发布到RabbitMQ消息代理服务器。
+
+**Ordering异步操作：**
+
+- `Basket Checkout` - 使用 MassTranit 从 RabbitMQ 队列中接收购物车结算事件。
+- `Order Fulfiment` - 处理订单履行相关操作（订单、发货、通知）。
+- 触发 `OrderCreated` 领域事件，从而引发集成事件。
+
+### 4. 微服务 Basket 接口定义
+
+| 方法	  | 请求地址            | 描述                  |
+| ------ | ------------------ | -------------------- |
+| POST    | /basket/checkout  | 购物车结算             |
+
+使用 `MassTransit` 从 `RabbitMQ` 中接收购物车结算事件。
+
+### 5. 异步通信的架构风格
+
+**事件驱动的微服务架构**
+
+- 将事件视为不同微服务之间进行通信的主要方式。
+- 提升了解耦能力(decoupling)、可扩展性(scalability)以及响应速度(responsiveness)。
+
+**类库与NuGet包**
+
+- `MassTransit` - 专为 .NET 平台设计的消息代理抽象层，可简化异步消息传递的实现过程。
+- `MassTransit.RabbitMQ` - 专为RabbitMQ与MassTransit之间的集成而设计的功能模块。
+
+### 6. 双重写入问题(Dual Write)
+
+当应用程序需要同时修改两个不同系统中的数据时（比如数据库和消息队列），如果某次写入操作失败，就会导致数据不一致的情况发生。
+
+- 数据丢失或损坏
+- 没有适当的错误处理与恢复机制，问题将难以解决。
+- 双重写入操作难以被检测出来，也很难被修复。
+
+#### 6.1 双重写入的场景
+
+1. 创建订单时将修改订单数据库中的数据。
+2. 将订单创建事件发送到 Kafka 的事件总线。
+
+#### 6.2 避免微服务中的双重写入问题
+
+- 单体应用程序采用两阶段提交(2PC, 2 phase commit)协议。
+    - 它将事务的提交过程分为两个步骤，并确保所有系统都保证ACID原则。
+- 构建微服务时无法使用两阶段提交机制处理事务，因为它要求所有系统同时启动并正常运行。
+
+**解决方案**
+
+- `Transactional Outbox Pattern` 事务发件箱模式。
+- `Change Data Capture` 也就是CDC服务。
+
+**最佳实践**
+
+- 在基于事件驱动的应用程序中，使用 `Apache Kafka`、`CDC`以及`Debezium`等。
+- 使用像CockroachDB这样的新型数据库，它具备内置的数据变更捕获功能(CDC)。 
+
+#### 6.3 事务发件箱模式(Transactional Outbox Pattern)
+
+- 核心思路是在微服务数据库中创建一个`Outbox` 待发列表，用于实现事件的可靠发布。
+- 当API发布事件消息时，并不会直接发送这些消息，而是将它们存储到数据库中。
+- 任务会以预定义的时间间隔向消息代理系统发送事件。
+- 例如订单系统中，当有新订单被添加到系统中时，将会添加订单并将 `Order_Created` 事件记录到 `Outbox` 表中，该操作会在同一个事务中完成，以确保事件能够成功保存到数据库中。
+- 如果某个步骤失败，系统会依据 `ACID` 原则回滚所有之前的操作。
+- 接收由独立服务写入`Outbox`表中的事件，并传输至事件总线，另一项服务则监听`Outbox`表中的记录，并将事件发布出去。
+
+#### 6.4 微服务中的事务发件箱模式
+
+- 微服务在其数据库中提供了一个待办事项列表表。该表会记录所有待处理的事件。 
+- 将有一个CDC插件，用于读取出箱表的提交日志，并将这些事件发布到相应的队列中。 
+- 该机制确保了消息能够从一个微服务可靠地传递到另一个微服务，即便触发该消息的交易发生了失败。 
+- 该方法涉及将消息存储在微服务内部的本地“待发邮件”表中，该消息会在事务提交后发送给消费者。 
+- Ooutbox Pattern(出站箱模式)可以确保消息能够被可靠地送达目的地，即使发送消息的微服务处于不可用状态或出现故障。 
+
+### 7. 领域事件与集成事件(Domain Events vs Integration Events)
+
+**Domain Events：**
+
+- 在单一领域内发布和使用，严格限定在 微服务/领域 范围内。
+- 表示在整体中发生了某件事。
+- 在处理过程中同步发送，通过内存中的消息总线完成传输。
+
+**Integration Events：**
+
+- 用于在有限上下文或微服务环境中传达状态变化或事件发生的情况。 
+- 整个系统对特定领域事件的响应方式。
+- 异步方式，通过消息代理经由队列进行发送。
+
+### 8. 分布式事务的SAGA模式
+
+- Saga设计模式旨在分布式事务场景中保障微服务之间的数据一致性。 
+- Saga能够生成一系列交易记录，这些记录会按顺序更新各个微服务，并发布相应事件来触发下一个微服务的后续操作。 
+- 如果其中某个步骤失败，那么相关机制就会触发回滚操作——对相关事务进行反向处理，并向之前的微服务发送回滚事件。 
+- 使用 `brokers` 或 API组合 来实现 发布/订阅。
+- SAGA模式用于管理那些涉及多个微服务的长期运行事务。这些微服务实际上是由一系列独立的本地事务组成的，它们协同工作以实现端到端的业务功能。
+- 在分布式系统中非常有用，因为在这种系统中需要多个微服务协同工作、协调各自的行动。 
+- 确保整个交易要么成功完成，要么被恢复到初始状态。（即进行补偿性操作） 
+
+#### 8.1 SAGA 实现的类型
+
+1. `Choreography-based` 基于编舞式的SAGA模式。
+    - 它是一种去中心化的SAGA模式，其中每个微服务都负责监听和处理事件，以触发下一个微服务的操作。
+    - 每个微服务都需要知道如何处理哪些事件，以及在什么情况下触发下一个微服务。
+    - 这种模式的优势在于它非常灵活，因为它不需要任何协调机制。
+    - 然而，它的劣势在于它可能会变得复杂，因为每个微服务都需要知道如何处理哪些事件。
+2. `Orchestration-based` 基于编排式的SAGA模式。
+    - 它是一种中心化的SAGA模式，其中一个协调器微服务负责监听和处理事件，以触发下一个微服务的操作。
+    - 协调器微服务需要知道如何处理哪些事件，以及在什么情况下触发下一个微服务。
+    - 这种模式的优势在于它非常简单，因为它只需要一个协调器微服务。
+    - 然而，它的劣势在于它可能会成为系统的单点故障，因为如果协调器微服务失败，那么整个交易就会失败。
+
+### 9. ASP.NET 中的 Feature Flags 功能管理机制
+
+- `Feature Flags`功能标志是一种非常强大的工具，它能让开发团队在不修改代码的情况下改变系统的运行行为。
+- 它能够动态的开启或关闭各项功能，并能与现有的配置系统无缝集成。 
+- `Microsoft.FeatureManagement.AspNetCore` 提供了实现功能开发的简化方法。
+
+### 10. 微服务异步通信
+
+#### 10.1 创建 BuildingBlocks.Messaging 类库
+
+(1). 创建类库 `BuildingBlocks.Messaging` 用于定义集成事件。
+
+```bash
+cd .\src\BuildingBlocks\
+dotnet new classlib -n BuildingBlocks.Messaging
+```
+
+将类库添加至解决方案中
+
+```bash
+cd ..\
+dotnet sln add .\BuildingBlocks\BuildingBlocks.Messaging
+```
+
+#### 10.2 定义 IntegrationEvent 集成事件
+
+- 集成事件是在微服务之间通信的事件，它们通常用于在不同的微服务之间传递状态变化或事件发生的情况。
+- 集成事件通常是异步的，因为它们是通过消息队列进行传递的。
+- 集成事件通常是领域事件的投影，因为它们是从领域事件中提取出来的。
+- 集成事件通常是领域事件的补充，因为它们提供了更高级别的抽象，用于在微服务之间进行通信。
+
+(1). 定义集成事件的基类
+
+```csharp
+public record IntegrationEvent
+{
+    public Guid Id => Guid.NewGuid();
+    public DateTime OccuredOn => DateTime.Now;
+    public string EventType => GetType().AssemblyQualifiedName;
+}
+```
+
+(2). 定义具体的集成事件
+
+```csharp
+public record BasketCheckoutEvent : IntegrationEvent
+{
+    public required string UserName { get; set; }
+    public Guid CustomerId { get; set; }
+    public decimal TotalPrice { get; set; }
+
+    public string Name { get; set; }
+    public string Email {get;set;}
+    public string AddressLine {get;set;}
+    public string Country {get;set;}
+    public string State {get;set;}
+    public string ZipCode {get;set;}
+
+    public string CardName {get;set;}
+    public string CardNumber {get;set;}
+    public string Expiration {get;set;}
+    public string CVV {get;set;}
+    public int PaymentMethod {get;set;}
+}
+```
+
+#### 10.3 MassTransit 配置
+
+(1). 在 `BuildingBlocks.Messaging` 项目中安装类库。
+
+```bash
+dotnet add package MassTransit.RabbitMQ
+```
+
+(2). 添加配置信息
+
+在 `Basket.API` 项目以及 `Ordering.API` 项目中的 `appsettings.json` 文件中添加如下配置：
+
+```json
+"MessageBroker": {
+    "Host": "amqp://localhost:5672",
+    "UserName": "guest",
+    "Password": "guest"
+}
+```
+
+(3). 添加 MassTransit 配置扩展方法，用于在 ASP.NET Core 应用程序中添加 MassTransit 服务。
+
+```csharp
+namespace BuildingBlocks.Messaging.MassTransit;
+
+public static class Extensions
+{
+    public static IServiceCollection AddMessageBroker(this IServiceCollection services, IConfiguration configuration,
+        Assembly? assembly = null)
+    {
+        services.AddMassTransit(config =>
+        {
+            config.SetKebabCaseEndpointNameFormatter();
+
+            if (assembly != null)
+                config.AddConsumers(assembly);
+
+            config.UsingRabbitMq((context, configurator) =>
+            {
+                configurator.Host(new Uri(configuration["MessageBroker:Host"]), host =>
+                {
+                    host.Username(configuration["MessageBroker:UserName"]);
+                    host.Password(configuration["MessageBroker:Password"]);
+                });
+                configurator.ConfigureEndpoints(context);
+            });
+        });
+        return services;
+    }
+}
+```
+
+#### 10.4 从 微服务 Basket 项目中发布事件
+
+(1). 在 `Basket.API` 项目中添加对 `BuildingBlocks.Messaging` 项目的引用。
+
+```bash
+dotnet add .\src\Basket\Basket.API\Basket.API.csproj reference .\src\BuildingBlocks\BuildingBlocks.Messaging\BuildingBlocks.Messaging.csproj
+```
+
+(2). 在 `Basket.API` 项目中注册 MassTransit 服务。
+
+```csharp
+builder.Services.AddMessageBroker(builder.Configuration);
+```
+
+#### 10.5 从 微服务 Basket 项目中构建结算接口
+
+(1). 定义购物车结算请求体
+
+```csharp
+public class BasketCheckoutDto
+{
+    public string UserName { get; set; }
+    public Guid CustomerId { get; set; }
+    public decimal TotalPrice { get; set; }
+    
+    // Shipping & Billing Address
+    public string Name { get; set; }
+    public string Email { get; set; }
+    public string AddressLine { get; set; }
+    public string Country { get; set; }
+    public string State { get; set; }
+    public string ZipCode { get; set; }
+
+    // Payment
+    public string CardName { get; set; }
+    public string CardNumber { get; set; }
+    public string Expiration { get; set; }
+    public string CVV { get; set; }
+    public int PaymentMethod { get; set; }
+}
+```
+
+(2). 实现购物车结算命令
+
+```csharp
+namespace Basket.API.Basket.CheckoutBasket;
+
+public record CheckoutBasketCommand(BasketCheckoutDto BasketCheckoutDto) : ICommand<CheckoutBasketResult>;
+
+public record CheckoutBasketResult(bool IsSuccess);
+
+public class CheckoutBasketCommandValidator
+    : AbstractValidator<CheckoutBasketCommand>
+{
+    public CheckoutBasketCommandValidator()
+    {
+        RuleFor(x => x.BasketCheckoutDto)
+            .NotNull()
+            .WithMessage("BasketCheckoutDto can't be null");
+
+        RuleFor(x => x.BasketCheckoutDto.UserName)
+            .NotEmpty()
+            .WithMessage("UserName is required");
+    }
+}
+
+public class CheckoutBasketHandler(
+    IBasketRepository basketRepository,
+    IPublishEndpoint publishEndpoint)
+    : ICommandHandler<CheckoutBasketCommand, CheckoutBasketResult>
+
+{
+    public async Task<CheckoutBasketResult> Handle(CheckoutBasketCommand command, CancellationToken cancellationToken)
+    {
+        var basket = await basketRepository.GetBasket(command.BasketCheckoutDto.UserName, cancellationToken);
+        if (basket is null)
+            return new CheckoutBasketResult(false);
+
+        var eventMessage = command.BasketCheckoutDto.Adapt<BasketCheckoutEvent>();
+        eventMessage.TotalPrice = basket.TotalPrice;
+
+        await publishEndpoint.Publish(eventMessage, cancellationToken);
+
+        await basketRepository.DeleteBasket(command.BasketCheckoutDto.UserName,cancellationToken);
+        
+        return new  CheckoutBasketResult(true);
+    }
+}
+```
+
+(3). 定义购物车结算接口
+
+```csharp
+namespace Basket.API.Basket.CheckoutBasket;
+
+public record CheckoutBasketRequest(BasketCheckoutDto BasketCheckoutDto);
+
+public record CheckoutBasketResponse(bool IsSuccess);
+
+public class CheckoutBasketEndpoints : ICarterModule
+{
+    public void AddRoutes(IEndpointRouteBuilder app)
+    {
+        app
+            .MapPost("/basket/checkout", async (CheckoutBasketRequest request,ISender sender) =>
+            {
+                var command = request.Adapt<CheckoutBasketCommand>();
+                
+                var result = await sender.Send(command);
+
+                var response = result.Adapt<CheckoutBasketResponse>();
+                
+                return Results.Ok(response);
+            })
+            .WithName("CheckoutBasket")
+            .WithDescription("Checkout Basket")
+            .WithSummary("Checkout Basket")
+            .Produces<CheckoutBasketResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+    }
+}
+```
+
+#### 10.6 微服务 Ordering 订阅购物车结算事件
+
+(1). 在 `Ordering.Application` 项目中添加对 `BuildingBlocks.Messaging` 项目的引用。
+
+```bash
+dotnet add .\src\Ordering\Ordering.Application\Ordering.Application.csproj reference .\src\BuildingBlocks\BuildingBlocks.Messaging\BuildingBlocks.Messaging.csproj
+```
+
+(2). 添加 MassTranit 配置
+
+在 `Ordering.API` 项目中的 `appsettings.json` 配置文件中添加如下配置：
+
+```json
+"MessageBroker": {
+    "Host": "amqp://localhost:5672",
+    "UserName": "guest",
+    "Password": "guest"
+}
+```
+
+(3). 注册 MassTransit 服务
+
+在 `DependencyInjection.cs` 文件中添加如下代码，用以注册 MassTransit 服务。
+
+```csharp
+namespace Ordering.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services,IConfiguration configuration)
+    {
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
+            cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+            cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+        });
+
+        services.AddMessageBroker(configuration,Assembly.GetExecutingAssembly());
+
+        return services;
+    }
+}
+```
+
+#### 10.7 领域事件与集成事件处理
+
+(1). 添加领域事件处理
+
+```csharp
+namespace Ordering.Application.Orders.EventHandlers.Domain;
+
+public class OrderCreatedEventHandler(
+    IPublishEndpoint publishEndpoint,
+    ILogger<OrderCreatedEventHandler> logger)
+    : INotificationHandler<OrderCreatedEvent>
+{
+    public async Task Handle(OrderCreatedEvent notification, CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Domain Event handled: {DomainEvent}", notification.GetType().Name);
+
+        // 发布事件
+        var orderCreatedIntegrationEvent = notification.Order.ToOrderDto();
+        await publishEndpoint.Publish(orderCreatedIntegrationEvent, cancellationToken);
+    }
+}
+```
+
+(2). 添加集成事件处理
+
+```csharp
+namespace Ordering.Application.Orders.EventHandlers.Integration;
+
+public class BasketCheckoutEventHandler(
+    ISender sender,
+    ILogger<BasketCheckoutEventHandler> logger)
+    : IConsumer<BasketCheckoutEvent>
+{
+    public async Task Consume(ConsumeContext<BasketCheckoutEvent> context)
+    {
+        logger.LogInformation("Integration Event Handled: {IntegrationEvent}", context.Message.GetType().Name);
+
+        var command = MapToCreateOrderCommand(context.Message);
+        await sender.Send(command);
+    }
+
+    private CreateOrderCommand MapToCreateOrderCommand(BasketCheckoutEvent message)
+    {
+        var orderId = Guid.NewGuid();
+        var addressDto = new AddressDto(message.Name, message.Email, message.AddressLine, message.Country,
+            message.State, message.ZipCode);
+        var paymentDto = new PaymentDto(message.CardName, message.CardNumber, message.Expiration, message.CVV,
+            message.PaymentMethod);
+
+        var orderDto = new OrderDto(
+            Id: orderId,
+            CustomerId: message.CustomerId,
+            OrderName: message.UserName,
+            ShippingAddress: addressDto,
+            BillingAddress: addressDto,
+            Payment: paymentDto,
+            Status: OrderStatus.Pending,
+            OrderItems:
+            [
+            ]);
+        return new CreateOrderCommand(orderDto);
+    }
+}
+```
+#### 10.8 配置 Feature Flags
+
+(1). 在 `BuildingBlocks` 项目中安装类库。
+
+```bash
+dotnet add package Microsoft.FeatureManagement.AspNetCore
+```
+
+(2). 在 `Ordering.Application` 项目中注册 `FeatureManagement` 服务。
+
+```csharp
+namespace Ordering.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services,IConfiguration configuration)
+    {
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
+            cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+            cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+        });
+
+        services.AddFeatureManagement();
+        services.AddMessageBroker(configuration,Assembly.GetExecutingAssembly());
+        
+        return services;
+    }
+}
+```
+
+(3). 在 `Ordering.API` 项目中的 `appsettings.json` 配置文件中添加如下配置：
+
+```json
+"FeatureManagement": {
+    "OrderFulfilment": true
+}
+```
+
+(4). 在领域事件处理中使用 `IFeatureManagement` 控制是否启用某个功能。
+
+```csharp
+namespace Ordering.Application.Orders.EventHandlers.Domain;
+
+public class OrderCreatedEventHandler(
+    IPublishEndpoint publishEndpoint,
+    IFeatureManager featureManager,
+    ILogger<OrderCreatedEventHandler> logger)
+    : INotificationHandler<OrderCreatedEvent>
+{
+    public async Task Handle(OrderCreatedEvent notification, CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Domain Event handled: {DomainEvent}", notification.GetType().Name);
+
+        if (!await featureManager.IsEnabledAsync("OrderFulfilment"))
+        {
+            return;
+        }
+
+        // 发布事件
+        var orderCreatedIntegrationEvent = notification.Order.ToOrderDto();
+        await publishEndpoint.Publish(orderCreatedIntegrationEvent, cancellationToken);
+    }
+}
+```
+
+### 11. Docker Compose 配置
+
+#### 11.1 配置 docker-compose.yaml 文件
+
+添加 `rabbitmq` 服务以及 `ordering.api` 服务。
+
+```yaml
+services:
+  message.broker:
+    image: rabbitmq:management
+
+  ordering.api:
+    image: ${DOCKER_REGISTRY-}ordering.api
+    build:
+      context: .
+      dockerfile: Services/Ordering/Ordering.API/Dockerfile
+```
+
+#### 11.2 配置 docker-compose.override.yaml 文件
+
+添加 `rabbitmq` 服务以及 `ordering.api` 服务，并修改 `basket.api` 服务配置。
+
+```yaml
+services:
+  message.broker:
+    container_name: message.broker
+    hostname: ecommerce-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  basket.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=123456
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/home/app/.aspnet/https/localhost.pfx
+      - ConnectionStrings__Database=Server=basket.db;Port=5433;Database=BasketDb;User Id=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__Redis=distribute.cache:6379
+      - GrpcSettings__DiscountUrl=https://discount.grpc:8081
+      - MessageBroker__Host=amqp://ecommerce-mq:5672
+      - MessageBroker__UserName=guest
+      - MessageBroker__Password=guest
+    depends_on:
+      - basket.db
+      - distribute.cache
+      - discount.grpc
+      - message.broker
+    ports:
+      - "6001:8080"
+      - "6061:8081"
+    volumes:
+      - ${USERPROFILE}/.aspnet/Https:/home/app/.aspnet/https:ro
+  
+  ordering.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=123456
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/home/app/.aspnet/https/localhost.pfx
+      - ConnectionStrings__Database=Server=order.db;Port=5433;Database=OrderDb;User Id=postgres;Password=postgres;Include Error Detail=true
+      - MessageBroker__Host=amqp://ecommerce-mq:5672
+      - MessageBroker__UserName=guest
+      - MessageBroker__Password=guest
+      - FeatureManagement__OrderFulfillment=false
+    depends_on:
+      - order.db
+      - message.broker
+    ports:
+      - "6003:8080"
+      - "6063:8081"
+    volumes:
+      - ${USERPROFILE}/.aspnet/Https:/home/app/.aspnet/https:ro
+```
