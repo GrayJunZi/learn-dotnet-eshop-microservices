@@ -1,0 +1,29 @@
+meta {
+  name: 创建商品
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{YarpApiGateway}}/catalog-service/products
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "Name": "Product A",
+    "Categories": [
+      "A",
+      "B",
+      "C"
+    ],
+    "ImageFile":"Image File Product A",
+    "Price": 199.99
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

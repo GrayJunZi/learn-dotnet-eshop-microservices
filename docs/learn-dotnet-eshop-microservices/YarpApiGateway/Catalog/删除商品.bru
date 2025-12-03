@@ -1,0 +1,16 @@
+meta {
+  name: 删除商品
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{YarpApiGateway}}/catalog-service/products/019a0ef0-c56f-42d9-bd0f-0d390f7653bf
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

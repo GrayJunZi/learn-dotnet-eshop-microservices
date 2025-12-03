@@ -1,0 +1,16 @@
+meta {
+  name: 根据商品Id获取商品信息
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{YarpApiGateway}}/catalog-service/019a3333-1ba9-497f-bee3-f9623d419c93
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

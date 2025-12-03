@@ -1,0 +1,33 @@
+meta {
+  name: 添加购物车
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{YarpApiGateway}}/basket-service/basket
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "Cart": {
+      "UserName": "ABCDE",
+      "Items": [
+        {
+          "Quantity": 100,
+          "Color": "Gray",
+          "Price": 199.99,
+          "ProductId": "019a3333-1ba9-497f-bee3-f9623d419c93",
+          "ProductName": "Product A"
+        }
+      ]
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

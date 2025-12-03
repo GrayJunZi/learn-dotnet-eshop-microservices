@@ -1,0 +1,16 @@
+meta {
+  name: 删除购物车信息
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{YarpApiGateway}}/basket-service/basket/A
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

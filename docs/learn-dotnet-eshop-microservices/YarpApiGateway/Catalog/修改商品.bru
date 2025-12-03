@@ -1,0 +1,30 @@
+meta {
+  name: 修改商品
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{YarpApiGateway}}/catalog-service/products
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "Id": "019a0ef0-c56f-42d9-bd0f-0d390f7653bf",
+    "Name": "New Product A",
+    "Categories": [
+      "A",
+      "B",
+      "C"
+    ],
+    "ImageFile":"Image File Product A",
+    "Price": 199.99
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

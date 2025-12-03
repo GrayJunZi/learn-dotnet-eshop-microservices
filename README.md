@@ -556,7 +556,7 @@ builder.Services.AddMediatR(config =>
 });
 ```
 
-#### 4.4 安装 Mapster 类库
+#### 4.3 安装 Mapster 类库
 
 (1). 在 BuildingBlocks 项目中安装 Mapster 类库
 
@@ -564,7 +564,7 @@ builder.Services.AddMediatR(config =>
 dotnet add package Mapster
 ```
 
-#### 4.3 安装 Carter 类库
+#### 4.4 安装 Carter 类库
 
 (1). 在 Catalog.API 项目中安装 Carter 类库
 
@@ -584,7 +584,7 @@ builder.Services.AddCarter();
 app.MapCarter();
 ```
 
-#### 4.2 封装CQRS
+#### 4.5 封装CQRS
 
 (1). 定义命令接口
 
@@ -638,7 +638,7 @@ public interface IQueryHandler<in TQuery, TResponse> : IRequestHandler<TQuery, T
 }
 ```
 
-#### 4.3 定义 Carter 接口
+#### 4.6 定义 Carter 接口
 
 ```csharp
 public class CreateProductEndpoint : ICarterModule
@@ -665,7 +665,7 @@ public class CreateProductEndpoint : ICarterModule
 }
 ```
 
-#### 4.4 添加全局引用
+#### 4.7 添加全局引用
 
 创建 `GlobalUsings.cs` 文件	
 
@@ -4824,6 +4824,415 @@ services:
     ports:
       - "6003:8080"
       - "6063:8081"
+    volumes:
+      - ${USERPROFILE}/.aspnet/Https:/home/app/.aspnet/https:ro
+```
+
+## 十四、API网关与YARP反向代理应用网关路由模式
+
+### 1. 结合 Yarp 反向代理技术的API网关
+
+- 网关路由模式(Gateway Routing Pattern)
+- API网关模式(API Gateway Pattern)
+- 前端模式的后端(BFF Backend for Frontend Pattern)
+- 将 Yarp 用作反向代理服务器
+
+#### 1.1 网关路由模式(Gateway Routing Pattern)
+
+- 通过暴露一个单一的端点，将请求路由到多个微服务。
+- 当需要在单个端点上提供多个服务，并根据请求将这些服务路由到内部后端微服务时，这种方法非常实用。 
+- 客户端需要使用多个微服务，此时“网关路由”模式可以用来创建一个新的端点，该端点负责接收请求，并将这些请求路由到相应的微服务。 
+- 电子商务应用可能提供以下服务：客户搜索、购物车功能、折扣优惠以及订单历史记录查询。
+- 如果某个微服务发生了变更，客户端对此一无所知，也无需修改客户端的任何代码；唯一的变更仅限于路由配置的调整。
+- 它将后端的微服务与客户端应用程序分离开来，从而使客户端代码保持简洁性——即便后端服务发生了变化，也无需对客户端代码进行修改。这一切都是通过API网关来实现的。
+- 通过蓝绿部署(blue/green deployments)或金丝雀部署(canary deployments)方式来部署微服务API，同时为同一微服务提供多个API版本。借助网关路由机制，你可以逐步将请求引导至新的API版本。 
+- 网关路由模式允许你灵活地使用不同版本的 API 来处理各类请求。 
+- 如果新版本的API存在异常情况，只需进行配置调整即可快速恢复到旧版本的状态。 
+- 使用应用层第7层路由机制将请求转发至内部服务。 
+
+#### 1.2 API网关模式(API Gateway Pattern)
+
+- API网关是客户端应用程序接入系统的唯一入口，位于客户端与多个后端服务之间。 
+- API网关负责管理对内部微服务的路由请求，能够将多个微服务的请求合并为一条响应，并处理那些需要跨多个微服务处理的通用性问题。 
+- 在设计基于微服务的大型复杂应用程序，且这些应用程序需要与多个客户端应用进行交互时，推荐使用该方案。 
+- 类似于面向对象设计中的外观模式，但它是一种用于同步通信的分布式系统反向代理或网关路由机制。 
+- 该模式提供了一个反向代理，用于将请求重定向或路由到您的内部微服务端点。 
+- 充当反向代理的角色，将客户端的请求路由到后端服务，并提供身份验证、SSL加密解密以及缓存管理等通用功能。 
+- 多个客户端应用程序连接到同一个API网关，这就存在单点故障的风险。 
+- 如果这些客户端应用程序的数量继续增加，或者如果在APl网关中添加更多逻辑从而导致系统复杂性进一步提升，那么这种做法就违背了最佳开发实践。 
+- 最佳实践是将 API Gateway 拆分为多个服务，或使用多个较小的 API Gateway——即“后端服务于前端”的架构模式。
+
+#### 1.3 API网关模式的主要特点
+
+**反向代理与网关路由**
+
+使用反向代理将请求重定向到内部微服务的对应端点。对于HTTP请求，通过第7层路由机制实现重定向功能。这种机制能够将客户端应用程序与内部微服务解耦开来，同时实现网络层功能的独立性，并对内部操作进行抽象处理。 
+
+**请求聚合与网关聚合**
+
+将多个内部微服务整合为一次客户端请求。客户端应用程序向 API Gateway 发送一个请求，该网关会将该请求分发给多个内部微服务，随后汇总这些微服务的处理结果，并以一个响应结果的形式返回给客户端应用程序。这种方式有助于减少通信过程中的重复请求。 
+
+**跨领域问题与枢纽功能外包**
+
+在 API网关上实现跨功能模块的最佳实践如下：身份验证与授权、服务发现、响应缓存、重试机制、断路器功能、速率限制与节流机制、负载均衡、日志记录、跟踪功能以及IP地址白名单机制。
+
+#### 1.4 前端模式的后端 (BFF, Backends for Frontends Pattern)
+
+- 前端模式的后端，本质上是根据不同的前端应用来分别设置API网关的。 
+- 单一的API网关会成为单一故障点。
+- BFF可以创建多个API网关，并根据客户端应用程序的所属范围对它们进行分类。
+- 单一且复杂的API网关可能存在风险，甚至会成为整个架构中的瓶颈。 
+- 大型系统通常会根据客户端类型（如移动端、网页端和桌面端）对API网关进行分类，从而暴露出多个API网关。 
+- 根据用户界面需求创建多个API网关，以确保其能最佳地满足前端环境的需求。 
+- BFF模式旨在为客户端应用程序提供专门的接口，以便与内部的微服务进行交互。 
+
+### 2. 什么是反向代理(Reverse Proxy)？
+
+- 反向代理服务器是一种位于Web服务器前面的服务器，它将客户端的请求转发给这些Web服务器。 
+- 实现了网关路由及API网关相关模式。
+- 它充当客户端与提供所需资源的服务器之间的中介。客户端通过它向这些服务器发起资源请求。 
+- 功能：负载均衡(Load Balancing)、卸载(Offloading)、安全(Security)
+
+#### 2.1 微软反向代理 Yarp
+
+- YARP是由微服务开发的一款轻量级、高度可定制的反向代理解决方案，专为 .NET 应用设计。
+- 简化对不同后端服务的请求路由流程，同时提供请求转换、负载均衡等功能。
+
+#### 2.2 微软反向代理 Yarp 功能
+
+- 可自定义路由规则：可详细指定请求应如何被路由到后端服务。
+- 跨平台：YARP基于.NET开发，因此具备跨平台能力。它可以在任何支持.NET Core的平台上运行，包括Windows、Linux和MacOS。
+- 支持最新的网络协议：YARP支持包括gRPC、HTTP/2以及WebSockets在内的现代网络协议。
+- 出色的性能：具备高吞吐量和低延迟的特点，非常适合需要高性能代理服务的场景。
+- 健康检查：监控后端服务的运行状态，并根据需要重新调整流量。
+- 现代HTTP客户端：利用.NET中的最新HTTP客户端功能来提升性能。
+
+### 3. 网关 YarpApiGateway 技术分析
+
+- 无需任何架构设计，只需简单配置应用设置即可实现反向代理功能。 
+- 反向代理服务器是一种位于Web服务器前面的服务器，它将客户端的请求转发给这些Web服务器。 
+- 基于配置的方法，用于将请求路由到不同的微服务。
+
+**类库与Nuget包：**
+
+- `Yarp.ReverseProxy` - 使应用程序具备反向代理功能。
+
+### 4. YARP 微服务的 接口定义
+
+将微服务名称作为内部`URI`的前缀，格式为 `{微服务名称}/{微服务内部URL}`
+
+| 方法	  | YARP请求地址                 | 内部微服务请求地址      |
+| ------ | --------------------------- | -------------------- |
+| GET    | /category/products          | /products            |
+| GET    | /category/products/{id}     | /products/{id}       |
+| GET    | /category/products/category | /products/category   |
+| POST   | /category/products          | /products            |
+| PUT    | /category/products/{id}     | /products/{id}       |
+| DELETE | /category/products/{id}     | /products/{id}       |
+
+### 5. 网关 YarpApiGateway 项目创建
+
+#### 5.1 创建项目结构
+
+(1). 创建 YARP 项目
+
+```bash
+dotnet new web -n YarpApiGateway
+```
+
+(2). 将 YARP 项目添加到解决方案中
+
+```bash
+dotnet sln add ".\ApiGateways\YarpApiGateway"
+```
+
+#### 5.2 安装 Yarp 类库
+
+(1). 在 `YarpApiGateway` 项目中安装 `Yarp.ReverseProxy` 类库
+
+```bash
+dotnet add package Yarp.ReverseProxy
+```
+
+(2). 在 `YarpApiGateway` 项目中注册 Yarp 服务
+
+```csharp
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+```
+
+(3). 在 `YarpApiGateway` 项目中配置 Yarp 路由
+
+```csharp
+app.MapReverseProxy();
+```
+
+#### 5.3 配置 Yarp 路由
+
+(1). 在 `YarpApiGateway` 项目中的 `appsettings.json` 文件中添加 `Yarp` 配置。
+
+定义各微服务的路由，将 `/{微服务名称}/{**catch-all}` 路由到 `{微服务名称}-cluster` 集群。
+
+```json
+{
+  "ReverseProxy": {
+    "Routes": {
+      "catalog-route": {
+        "ClusterId": "catalog-cluster",
+        "Match": {
+          "Path": "/catalog-service/{**catch-all}"
+        },
+        "Transforms": [
+          {
+            "PathPattern": "{**catch-all}"
+          }
+        ]
+      },
+      "basket-route": {
+        "ClusterId": "basket-cluster",
+        "Match": {
+          "Path": "/basket-service/{**catch-all}"
+        },
+        "Transforms": [
+          {
+            "PathPattern": "{**catch-all}"
+          }
+        ]
+      },
+      "ordering-route": {
+        "ClusterId": "ordering-cluster",
+        "Match": {
+          "Path": "/ordering-service/{**catch-all}"
+        },
+        "Transforms": [
+          {
+            "PathPattern": "{**catch-all}"
+          }
+        ]
+      }
+    },
+    "Clusters": {
+      "catalog-cluster": {
+        "Destinations": {
+          "destination1": {
+            "Address": "http://localhost:6000/"
+          }
+        }
+      },
+      "basket-cluster": {
+        "Destinations": {
+          "destination1": {
+            "Address": "http://localhost:6001/"
+          }
+        }
+      },
+      "ordering-cluster": {
+        "Destinations": {
+          "destination1": {
+            "Address": "http://localhost:6002/"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+#### 5.4 配置 Yarp 速率限制
+
+(1). 在 `YarpApiGateway` 项目中注册速率限制服务。
+
+使用固定窗口速率限制，窗口大小为 10 秒，允许 5 个请求。
+
+```csharp
+builder.Services.AddRateLimiter(rateLimitOptions =>
+{
+    rateLimitOptions.AddFixedWindowLimiter("fixed", options =>
+    {
+        options.Window = TimeSpan.FromSeconds(10);
+        options.PermitLimit = 5;
+    });
+});
+```
+
+(2). 启用速率限制中间件
+
+```csharp
+app.UseRateLimiter();
+```
+
+(3). 在 `YarpApiGateway` 项目中配置速率限制策略
+
+将 `ordering-route` 路由添加速率限制策略 `fixed`。
+
+```json
+{
+  "ReverseProxy": {
+    "Routes": {
+      "ordering-route": {
+        "ClusterId": "ordering-cluster",
+        "RateLimiterPolicy": "fixed",
+        "Match": {
+          "Path": "/ordering-service/{**catch-all}"
+        },
+        "Transforms": [
+          {
+            "PathPattern": "{**catch-all}"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+### 6. 配置文件的环境配置
+
+通过环境变量 `ASPNETCORE_ENVIRONMENT` 来指定环境所使用的配置文件。
+
+- `appsettings.json` 生产环境
+- `appsettings.Test.json` 测试环境
+- `appsettings.Development.json` 开发环境
+
+#### 6.1 配置生产环境
+
+将微服务地址配置为 `Docker Compose` 中定义的服务名称。
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ReverseProxy": {
+    "Routes": {
+      "catalog-route": {
+        "ClusterId": "catalog-cluster",
+        "Match": {
+          "Path": "/catalog-service/{**catch-all}"
+        },
+        "Transforms": [
+          {
+            "PathPattern": "{**catch-all}"
+          }
+        ]
+      },
+      "basket-route": {
+        "ClusterId": "basket-cluster",
+        "Match": {
+          "Path": "/basket-service/{**catch-all}"
+        },
+        "Transforms": [
+          {
+            "PathPattern": "{**catch-all}"
+          }
+        ]
+      },
+      "ordering-route": {
+        "ClusterId": "ordering-cluster",
+        "RateLimiterPolicy": "fixed",
+        "Match": {
+          "Path": "/ordering-service/{**catch-all}"
+        },
+        "Transforms": [
+          {
+            "PathPattern": "{**catch-all}"
+          }
+        ]
+      }
+    },
+    "Clusters": {
+      "catalog-cluster": {
+        "Destinations": {
+          "destination1": {
+            "Address": "https://catalog.api:8081/"
+          }
+        }
+      },
+      "basket-cluster": {
+        "Destinations": {
+          "destination1": {
+            "Address": "https://basket.api:8081/"
+          }
+        }
+      },
+      "ordering-cluster": {
+        "Destinations": {
+          "destination1": {
+            "Address": "https://ordering.api:8081/"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+
+### 7. Docker 容器化与编排
+
+#### 7.1 Docker 容器化
+
+(1). 在 `YarpApiGateway` 项目中添加 Dockerfile 文件
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+USER $APP_UID
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY ["ApiGateways/YarpApiGateway/YarpApiGateway.csproj", "ApiGateways/YarpApiGateway/"]
+RUN dotnet restore "ApiGateways/YarpApiGateway/YarpApiGateway.csproj"
+COPY . .
+WORKDIR "/src/ApiGateways/YarpApiGateway"
+RUN dotnet build "./YarpApiGateway.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "./YarpApiGateway.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "YarpApiGateway.dll"]
+```
+
+#### 7.2 配置 Docker Compose
+
+(1). 在 `docker-compose.yml` 文件中添加 `YarpApiGateway` 服务。
+
+```yaml
+services:
+  yarp.api.gateway:
+    image: ${DOCKER_REGISTRY-}yarp.api.gateway
+    build:
+      context: .
+      dockerfile: ApiGateways/YarpApiGateway/Dockerfile
+```
+
+(2). 在 `docker-compose.override.yml` 文件中添加 `YarpApiGateway` 服务的端口映射。
+
+```yaml
+services:        
+  yarp.api.gateway:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+    depends_on:
+      - catalog.api
+      - basket.api
+      - ordering.api
+    ports:
+      - "8080"
+      - "8081"
     volumes:
       - ${USERPROFILE}/.aspnet/Https:/home/app/.aspnet/https:ro
 ```

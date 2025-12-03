@@ -1,0 +1,16 @@
+meta {
+  name: 获取购物车信息
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{YarpApiGateway}}/basket-service/basket/A
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

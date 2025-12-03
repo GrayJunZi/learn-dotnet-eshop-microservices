@@ -1,0 +1,36 @@
+meta {
+  name: 购物车结算
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{YarpApiGateway}}/basket-service/basket/checkout
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "BasketCheckoutDto": {
+      "UserName": "ABCDE",
+      "CustomerId": "58C49479-EC65-4DE2-86E7-033C546291AA",
+      "Name": "Valentina",
+      "Email": "vale@mail.com",
+      "AddressLine": "A",
+      "Country": "USA",
+      "State": "Oklahoma",
+      "ZipCode": "41248",
+      "CardName": "CARD_1",
+      "CardNumber": "123-456-789",
+      "Expiration": "12/29",
+      "Cvv": "455",
+      "PaymentMethod": 1
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
