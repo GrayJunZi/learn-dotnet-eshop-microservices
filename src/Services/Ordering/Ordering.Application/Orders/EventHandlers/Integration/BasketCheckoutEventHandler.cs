@@ -1,4 +1,4 @@
-﻿using BuildingBlocks.Messaging.Events;
+using BuildingBlocks.Messaging.Events;
 using MassTransit;
 using Ordering.Application.Orders.Command.CreateOrder;
 using Ordering.Domain.Enums;
@@ -23,7 +23,7 @@ public class BasketCheckoutEventHandler(
         var orderId = Guid.NewGuid();
         var addressDto = new AddressDto(message.Name, message.Email, message.AddressLine, message.Country,
             message.State, message.ZipCode);
-        var paymentDto = new PaymentDto(message.CardName, message.CardNumber, message.Expiration, message.CVV,
+        var paymentDto = new PaymentDto(message.CardName, message.CardNumber, message.Expiration, message.Cvv,
             message.PaymentMethod);
 
         var orderDto = new OrderDto(

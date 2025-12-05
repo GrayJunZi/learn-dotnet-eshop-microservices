@@ -1,0 +1,25 @@
+﻿@model Shopping.Web.Models.Catalog.ProductModel
+
+<div class="card">
+    <a asp-page="ProductDetail" asp-route-productId="@Model.Id"><img asp-append-version="true" class="card-img-top"
+                                                                     src="~/images/product/@Model.ImageFile"
+                                                                     alt=""></a>
+    <div class="card-body">
+        <h4 class="card-title"><a asp-page="ProductDetail" asp-route-productId="@Model.Id"
+                                  class="color-main">@Model.Name</a></h4>
+        <p class="card-text">@Model.Description</p>
+
+        @*<a asp-page="Cart" asp-route-productId="@Model.Id" class="btn btn-success btn-block">Add to Cart</a>*@
+
+        <form asp-page-handler="AddToCart" method="post" name="addToCartForm" id="add_cart_form">
+            <div class="d-grid gap-2">
+                <p class="btn btn-danger">@Model.Price $</p>
+                <a href="javascript:;" onclick="parentNode.parentNode.submit();" class="btn btn-success">
+                    Add to Cart
+                </a>
+            </div>
+            <input type="hidden" asp-for="@Model.Id" name="productId"/>
+        </form>
+
+    </div>
+</div>

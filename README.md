@@ -5148,21 +5148,21 @@ app.UseRateLimiter();
       "catalog-cluster": {
         "Destinations": {
           "destination1": {
-            "Address": "https://catalog.api:8081/"
+            "Address": "http://catalog.api:8080/"
           }
         }
       },
       "basket-cluster": {
         "Destinations": {
           "destination1": {
-            "Address": "https://basket.api:8081/"
+            "Address": "http://basket.api:8080/"
           }
         }
       },
       "ordering-cluster": {
         "Destinations": {
           "destination1": {
-            "Address": "https://ordering.api:8081/"
+            "Address": "http://ordering.api:8080/"
           }
         }
       }
@@ -5226,13 +5226,320 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_HTTP_PORTS=8080
       - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=123456
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/home/app/.aspnet/https/localhost.pfx
     depends_on:
       - catalog.api
       - basket.api
       - ordering.api
     ports:
-      - "8080"
-      - "8081"
+      - "6004:8080"
+      - "6064:8081"
+    volumes:
+      - ${USERPROFILE}/.aspnet/Https:/home/app/.aspnet/https:ro
+```
+
+## 十五、使用 Refit 和 HttpClientFactory 库的购物网站
+
+### 1. 开发购物网站的步骤
+
+1. WebUI购物应用微服务
+
+- 使用Razor Pages创建一个ASP.NET Web应用程序。
+- 该应用程序将采用Bootstrap 4进行样式设计。
+- 同时会使用ASP.NET Core的Razor相关工具，包括视图组件、部分视图、标签辅助程序以及模型绑定功能。 
+
+2. 数据模型
+
+- 定义目录模型、购物车模型以及订单模型。  
+- 这些模型将用于与 YarpApiGateway 端点进行交互。 
+
+3. Refit HttpClientFactory 库
+
+- 使用 Refit，这是一个自动提供类型安全的 REST 开发库。  
+- 利用 Refit 开发 ICatalogService、IBasketService 以及 IOrderingService 等接口。
+
+4. Razor Pages 开发
+
+- 首页、购物车、产品、产品详情、订单、结算 等相关页面的HTML以及C#代码。
+
+5. 容器化与编排技术(Containerization and Orchestration)
+
+- 在 Docker Compose 环境中运行 `Shopping.Web` 项目。
+
+### 2. 带有 Refit 的购物网站客户端
+
+- 基于 Bootstrap 4 主题开发 Razor 页面。
+- ASP.NET Core Razor 工具：视图组件、部分视图、标签辅助程序、模型绑定与验证功能
+- 使用 Refit HttpClientFactory 来调用 YarpApiGateway 接口。
+
+### 3. 购物网站 Shopping.Web 技术分析
+
+- 表示层(Presentation Layer)：使用 cshtml 和 razor 技术开发页面。
+- 业务层(Business Layer)：调用 YarpApiGateway 的服务类。
+- 数据层(Data Layer)：YarpApiGateway 用于调用下游微服务。
+
+### 4. 购物网站 Shopping.Web 项目创建
+
+#### 4.1 创建项目结构
+
+(1). 创建 Razor 项目
+
+```bash
+dotnet new razor -n Shopping.Web
+```
+
+(2). 将 YARP 项目添加到解决方案中
+
+```bash
+dotnet sln add ".\WebApps\Shopping.Web"
+```
+
+#### 4.2 安装 Refit 库
+
+在 `Shopping.Web` 项目中安装 Refit 库。
+
+```bash
+dotnet add package Refit.HttpClientFactory
+``` 
+
+#### 4.3 配置服务地址
+
+在 `Shopping.Web` 项目的 `appsettings.json` 文件中添加服务地址配置。
+
+```json
+{
+  "ApiSettings": {
+    "GatewayAddress": "https://localhost:6064"
+  }
+}
+```
+
+#### 4.4 配置 Refit 客户端
+
+在 `Shopping.Web` 项目的 `Program.cs` 文件中配置 Refit 客户端。
+
+```csharp
+builder.Services.AddRefitClient<ICatalogService>()
+    .ConfigureHttpClient(x =>
+    {
+        x.BaseAddress = new Uri(builder.Configuration["ApiSettings:GatewayAddress"]);
+    });
+
+builder.Services.AddRefitClient<IBasketService>()
+    .ConfigureHttpClient(x =>
+    {
+        x.BaseAddress = new Uri(builder.Configuration["ApiSettings:GatewayAddress"]);
+    });
+
+builder.Services.AddRefitClient<IOrderingService>()
+    .ConfigureHttpClient(x =>
+    {
+        x.BaseAddress = new Uri(builder.Configuration["ApiSettings:GatewayAddress"]);
+    });
+```
+
+### 5. 购物网站 Shopping.Web 页面开发
+
+(1). 创建 `Index.cshtml` 页面
+
+```html
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<hr />
+
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel">
+                <ol class="carousel-indicators">
+                    <li data-target="#carouselExampleIndicators" data-slide-to="0" class="active"></li>
+                    <li data-target="#carouselExampleIndicators" data-slide-to="1"></li>
+                    <li data-target="#carouselExampleIndicators" data-slide-to="2"></li>
+                </ol>
+                <div class="carousel-inner">
+                    <div class="carousel-item active">
+                        <img class="d-block w-100" src="~/images/banner/banner1.png" alt="First slide">
+                    </div>
+                    <div class="carousel-item">
+                        <img class="d-block w-100" src="~/images/banner/banner2.png" alt="Second slide">
+                    </div>
+                    <div class="carousel-item">
+                        <img class="d-block w-100" src="~/images/banner/banner3.png" alt="Second slide">
+                    </div>
+                </div>
+                <a class="carousel-control-prev" href="#carouselExampleIndicators" role="button" data-slide="prev">
+                    <span class="sr-only">Next</span>
+                </a>
+            </div>
+        </div>
+
+        <partial name="_TopProductPartial" model="Model.ProductList.FirstOrDefault()" />       
+
+    </div>
+</div>
+
+<div class="container mt-3">
+    <div class="row">
+        <div class="col-sm">
+            <div class="card">
+                <div class="card-header bg-primary text-white text-uppercase">
+                    <i class="fas fa-star"></i> Last products
+                </div>
+                <div class="card-body">
+                    <div class="row">
+
+                        @foreach (var product in Model.ProductList.Take(4))
+                        {
+                            <div class="col-sm">
+                                <partial name="_ProductItemPartial" model="@product" />
+                            </div>
+                        }
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-3 mb-4">
+    <div class="row">
+        <div class="col-sm">
+            <div class="card">
+                <div class="card-header bg-primary text-white text-uppercase">
+                    <i class="fas fa-trophy"></i> Best products
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        
+                            @foreach (var product in Model.ProductList.TakeLast(4))
+                            {
+                                <div class="col-sm">
+                                    <partial name="_ProductItemPartial" model="@product" />
+                                </div>
+                            }
+                            
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+```
+
+(2). 实现 `Index.cshtml.cs` 页面模型，添加 `OnGetAsync` 方法，用于获取产品列表。
+
+```csharp
+namespace Shopping.Web.Pages
+{
+    public class IndexModel(
+        ICatalogService catalogService,
+        IBasketService basketService,
+        ILogger<IndexModel> logger) : PageModel
+    {
+        public IEnumerable<ProductModel> ProductList { get; set; } =
+            new List<ProductModel>();
+
+        public async Task<IActionResult> OnGetAsync()
+        {
+            logger.LogInformation("Index page visited.");
+
+            var result = await catalogService.GetProducts();
+            ProductList = result.Products;
+            return Page();
+        }
+
+        public async Task<IActionResult> OnPostAddToCartAsync(Guid productId)
+        {
+            logger.LogInformation("Add to cart button clicked.");
+
+            var productResponse = await catalogService.GetProductById(productId);
+
+            var basket = await basketService.LoadUserBasket();
+
+            basket.Items.Add(new ShoppingCartItemModel
+            {
+                ProductId = productId,
+                ProductName = productResponse.Product.Name,
+                Price = productResponse.Product.Price,
+                Quantity = 1,
+                Color = "Black",
+            });
+
+            await basketService.StoreBasket(new StoreBasketRequest(basket));
+            return RedirectToPage("Cart");
+        }
+    }
+}
+```
+
+### 6. Docker 容器化与编排
+
+#### 6.1 Docker 容器化
+
+(1). 在 Catalog.API 项目中添加 Dockerfile 文件
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+USER $APP_UID
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY ["WebApps/Shopping.Web/Shopping.Web.csproj", "WebApps/Shopping.Web/"]
+RUN dotnet restore "WebApps/Shopping.Web/Shopping.Web.csproj"
+COPY . .
+WORKDIR "/src/WebApps/Shopping.Web"
+RUN dotnet build "./Shopping.Web.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "./Shopping.Web.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "Shopping.Web.dll"]
+```
+
+#### 6.2 Docker Compose 配置
+
+(1). 在 `docker-compose.yaml` 文件中添加 Shopping.Web 服务
+
+```yaml
+services:
+  shopping.web:
+    image: ${DOCKER_REGISTRY-}shopping.web
+    build:
+      context: .
+      dockerfile: WebApps/Shopping.Web/Dockerfile
+```
+
+(2). 在 `docker-compose.override.yaml` 文件中添加 Shopping.Web 服务的端口映射
+
+```yaml
+services:  
+  shopping.web:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=123456
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/home/app/.aspnet/https/localhost.pfx
+      - ApiSettings__GatewayAddress=http://yarp.api.gateway:8080
+    depends_on:
+      - yarp.api.gateway
+    ports:
+      - "6005:8080"
+      - "6065:8081"
     volumes:
       - ${USERPROFILE}/.aspnet/Https:/home/app/.aspnet/https:ro
 ```

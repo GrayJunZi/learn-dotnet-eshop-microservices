@@ -1,6 +1,6 @@
-namespace Basket.API.Dtos;
+namespace Shopping.Web.Models.Basket;
 
-public class BasketCheckoutDto
+public class BasketCheckoutModel
 {
     public string UserName { get; set; }
     public Guid CustomerId { get; set; }
@@ -21,3 +21,7 @@ public class BasketCheckoutDto
     public string Cvv { get; set; }
     public int PaymentMethod { get; set; }
 }
+
+public record CheckoutBasketRequest(BasketCheckoutModel BasketCheckout);
+
+public record CheckoutBasketResponse(bool IsSuccess);
